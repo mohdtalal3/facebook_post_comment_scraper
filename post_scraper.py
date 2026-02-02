@@ -161,7 +161,9 @@ def fetch_posts(limit):
         }
 
         r = session.post(GRAPHQL_URL, headers=HEADERS, data=payload)
-
+        with open("response.txt", "w", encoding="utf-8") as f:
+            f.write(r.text)
+        print("Status code:", r.status_code)
         cleaned_data = parse_fb_response(r.text)
         
         # Save cleaned data for verification
