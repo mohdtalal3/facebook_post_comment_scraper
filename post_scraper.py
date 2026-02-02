@@ -165,9 +165,9 @@ def fetch_posts(limit):
         cleaned_data = parse_fb_response(r.text)
         
         # Save cleaned data for verification
-        # with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
-        #     json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
-        # print(f"Saved cleaned_page_{page_num}.json")
+        with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
+            json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
+        print(f"Saved cleaned_page_{page_num}.json")
         
         # Collect all Story nodes from the response
         # Stories can be in two places:
