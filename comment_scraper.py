@@ -1,15 +1,26 @@
 import requests
 import json
 import time
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 GRAPHQL = "https://www.facebook.com/api/graphql/"
 
-
-session = requests.Session()
-session.headers.update({
+# Base headers for all requests
+BASE_HEADERS = {
     "user-agent": "Mozilla/5.0",
     "content-type": "application/x-www-form-urlencoded"
-})
+}
+
+# Get proxy configuration
+PROXY = os.getenv('PROXY')
+PROXIES = {'http': PROXY, 'https': PROXY} if PROXY else None
+
+if PROXY:
+    print(f"Using proxy: {PROXY}")
 
 # ===== PAYLOADS =====
 
@@ -78,10 +89,12 @@ def fetch_comments(feedback_id):
     response_count = 0
 
     while True:
-        r = session.post(
+        headers = {**BASE_HEADERS, "x-fb-friendly-name": "CommentsListComponentsPaginationQuery"}
+        r = requests.post(
             GRAPHQL,
-            headers={"x-fb-friendly-name": "CommentsListComponentsPaginationQuery"},
-            data=comments_payload(feedback_id, cursor)
+            headers=headers,
+            data=comments_payload(feedback_id, cursor),
+            proxies=PROXIES
         )
         j = fb_json(r.text)
         
@@ -126,10 +139,12 @@ def fetch_comments(feedback_id):
 # ===== FETCH REPLIES =====
 
 def fetch_replies(comment):
-    r = session.post(
+    headers = {**BASE_HEADERS, "x-fb-friendly-name": "Depth1CommentsListPaginationQuery"}
+    r = requests.post(
         GRAPHQL,
-        headers={"x-fb-friendly-name": "Depth1CommentsListPaginationQuery"},
-        data=replies_payload(comment["feedback_id"], comment["expansion_token"])
+        headers=headers,
+        data=replies_payload(comment["feedback_id"], comment["expansion_token"]),
+        proxies=PROXIES
     )
 
     j = fb_json(r.text)

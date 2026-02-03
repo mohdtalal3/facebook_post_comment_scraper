@@ -81,12 +81,19 @@ def parse_fb_response(text):
     return cleaned
 
 
-HEADERS = {
+BASE_HEADERS = {
     "user-agent": "Mozilla/5.0",
     "content-type": "application/x-www-form-urlencoded",
     "origin": "https://www.facebook.com",
     "referer": f"https://www.facebook.com/profile.php?id={USER_ID}",
 }
+
+# Get proxy configuration
+PROXY = os.getenv('PROXY')
+PROXIES = {'http': PROXY, 'https': PROXY} if PROXY else None
+
+if PROXY:
+    print(f"Using proxy: {PROXY}")
 
 
 def extract_media(node):
@@ -139,19 +146,6 @@ def extract_media(node):
 
 
 def fetch_posts(limit):
-    session = requests.Session()
-    
-    # Configure proxies from environment variables
-    proxy = os.getenv('PROXY')
-    
-    if proxy:
-        proxies = {
-            'http': proxy,
-            'https': proxy
-        }
-        session.proxies.update(proxies)
-        print(f"Using proxy: {proxy}")
-
     posts = []
     cursor = None
     page_num = 1  # Track page number for saving cleaned data
@@ -175,7 +169,7 @@ def fetch_posts(limit):
             "variables": json.dumps(variables),
         }
 
-        r = session.post(GRAPHQL_URL, headers=HEADERS, data=payload)
+        r = requests.post(GRAPHQL_URL, headers=BASE_HEADERS, data=payload, proxies=PROXIES)
         with open("response.txt", "w", encoding="utf-8") as f:
             f.write(r.text)
         print("Status code:", r.status_code)
