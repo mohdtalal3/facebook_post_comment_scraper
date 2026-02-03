@@ -1,6 +1,11 @@
-from curl_cffi import requests
+import requests
 import json
 import time
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 GRAPHQL_URL = "https://www.facebook.com/api/graphql/"
 
@@ -134,8 +139,18 @@ def extract_media(node):
 
 
 def fetch_posts(limit):
-    session = requests.Session(impersonate="chrome131")
-
+    session = requests.Session()
+    
+    # Configure proxies from environment variables
+    proxy = os.getenv('PROXY')
+    
+    if proxy:
+        proxies = {
+            'http': proxy,
+            'https': proxy
+        }
+        session.proxies.update(proxies)
+        print(f"Using proxy: {proxy}")
 
     posts = []
     cursor = None
