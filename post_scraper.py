@@ -1,4 +1,4 @@
-import requests
+from curl_cffi import requests
 import json
 import time
 
@@ -134,7 +134,7 @@ def extract_media(node):
 
 
 def fetch_posts(limit):
-    session = requests.Session()
+    session = requests.Session(impersonate="chrome131")
 
 
     posts = []
