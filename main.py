@@ -244,7 +244,7 @@ def scrape_page_posts():
     # Update the USER_ID in post_scraper
     import post_scraper
     post_scraper.USER_ID = page_id
-    post_scraper.HEADERS["referer"] = f"https://www.facebook.com/profile.php?id={page_id}"
+    post_scraper.BASE_HEADERS["referer"] = f"https://www.facebook.com/profile.php?id={page_id}"
     
     print(f"\nFetching {count} posts from page {page_id}...")
     posts = fetch_page_posts(count)
