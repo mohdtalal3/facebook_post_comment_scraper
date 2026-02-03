@@ -1,6 +1,11 @@
 import requests
 import json
 import time
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 GRAPHQL_URL = "https://www.facebook.com/api/graphql/"
 
@@ -14,6 +19,13 @@ HEADERS = {
     "origin": "https://www.facebook.com",
     "referer": f"https://www.facebook.com/groups/{GROUP_ID}/",
 }
+
+# Get proxy configuration
+PROXY = os.getenv('PROXY')
+PROXIES = {'http': PROXY, 'https': PROXY} if PROXY else None
+
+if PROXY:
+    print(f"Using proxy: {PROXY}")
 
 
 def extract_data_blocks(raw_text):
@@ -151,8 +163,6 @@ def extract_post_data(node):
 
 def fetch_posts(limit=10):
     """Fetch posts from Facebook group"""
-    session = requests.Session()
-    
     posts = []
     cursor = None
     page_num = 1
@@ -186,7 +196,7 @@ def fetch_posts(limit=10):
         }
         
         try:
-            r = session.post(GRAPHQL_URL, headers=HEADERS, data=payload)
+            r = requests.post(GRAPHQL_URL, headers=HEADERS, data=payload, proxies=PROXIES)
             r.raise_for_status()
         except requests.RequestException as e:
             print(f"Request failed: {e}")

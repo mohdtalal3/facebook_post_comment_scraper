@@ -5,9 +5,13 @@ import time
 import requests
 import re
 from html import unescape
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Import scraper modules
-from comment_scraper import fetch_comments, fetch_replies, session, fb_json, GRAPHQL
+from comment_scraper import fetch_comments, fetch_replies, fb_json, GRAPHQL, PROXIES
 from post_scraper import fetch_posts as fetch_page_posts, extract_media as extract_page_media, parse_fb_response as parse_page_response
 from group_post_scraper_v2 import fetch_posts as fetch_group_posts
 
