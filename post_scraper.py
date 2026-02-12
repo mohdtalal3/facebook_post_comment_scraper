@@ -283,15 +283,15 @@ def fetch_posts(limit):
         }
 
         r = retry_request(GRAPHQL_URL, BASE_HEADERS, payload, PROXIES)
-        with open("response.txt", "w", encoding="utf-8") as f:
-            f.write(r.text)
+        # with open("response.txt", "w", encoding="utf-8") as f:
+        #     f.write(r.text)
         print("Status code:", r.status_code)
         cleaned_data = parse_fb_response(r.text)
         
         # Save cleaned data for verification
-        with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
-            json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
-        print(f"Saved cleaned_page_{page_num}.json")
+        # with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
+        #     json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
+        # print(f"Saved cleaned_page_{page_num}.json")
         
         # Collect all Story nodes from the response
         # Stories can be in two places:
