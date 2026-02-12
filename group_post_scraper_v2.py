@@ -2,6 +2,7 @@ import requests
 import json
 import time
 import os
+import uuid
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -26,6 +27,64 @@ PROXIES = {'http': PROXY, 'https': PROXY} if PROXY else None
 
 if PROXY:
     print(f"Using proxy: {PROXY}")
+
+# ========= RETRY HELPER =========
+def retry_request(url, headers, data, proxies, max_retries=5):
+    """Make a POST request with retry logic"""
+    for attempt in range(1, max_retries + 1):
+        try:
+            r = requests.post(url, headers=headers, data=data, proxies=proxies, timeout=30)
+            if r.status_code == 200:
+                return r
+            print(f"  ⚠️ Attempt {attempt}/{max_retries}: Status {r.status_code}")
+        except Exception as e:
+            print(f"  ⚠️ Attempt {attempt}/{max_retries}: {str(e)}")
+        
+        if attempt < max_retries:
+            wait_time = attempt * 2  # Exponential backoff: 2, 4, 6, 8, 10 seconds
+            print(f"  ⏳ Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+    
+    raise Exception(f"Failed after {max_retries} attempts")
+
+
+def download_image(url, post_id, save_dir="group_post"):
+    """Download image from URL and save with random UUID in post folder"""
+    if not url or not post_id:
+        return None
+    
+    try:
+        # Create post-specific directory
+        post_dir = os.path.join(save_dir, str(post_id))
+        os.makedirs(post_dir, exist_ok=True)
+        
+        # Generate random UUID for filename
+        random_id = str(uuid.uuid4())
+        
+        # Get file extension from URL or default to .jpg
+        ext = ".jpg"
+        if ".png" in url.lower():
+            ext = ".png"
+        elif ".jpeg" in url.lower():
+            ext = ".jpeg"
+        
+        filename = f"{random_id}{ext}"
+        filepath = os.path.join(post_dir, filename)
+        
+        # Download the image
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        # Save the image
+        with open(filepath, 'wb') as f:
+            f.write(response.content)
+        
+        print(f"  📥 Downloaded image: {filename}")
+        return filename
+    
+    except Exception as e:
+        print(f"  ❌ Failed to download image: {str(e)}")
+        return None
 
 
 def extract_data_blocks(raw_text):
@@ -88,7 +147,53 @@ def parse_fb_response(text):
     return cleaned
 
 
-def extract_media(node):
+def is_reel_or_video_post(node):
+    """Check if the post is a reel or video post"""
+    if not node or node.get('__typename') != 'Story':
+        return False
+    
+    # Check for reel in story type or anywhere in node
+    node_typename = node.get('__typename', '')
+    if 'reel' in node_typename.lower():
+        return True
+    
+    # Check comet_sections for reel content
+    comet_sections = node.get('comet_sections', {})
+    content = comet_sections.get('content', {})
+    
+    content_typename = content.get('__typename', '')
+    if 'reel' in content_typename.lower():
+        return True
+    
+    # Check attachments for video/reel content
+    attachments = node.get('attachments', [])
+    for attachment in attachments:
+        # Check for video media type
+        if 'media' in attachment and attachment['media'].get('__typename') == 'Video':
+            return True
+        
+        # Check for reel substring in media object
+        if 'media' in attachment and 'reel' in str(attachment['media']).lower():
+            return True
+        
+        # Check in styles > attachment > media for video or reel
+        styles_media = attachment.get('styles', {}).get('attachment', {}).get('media', {})
+        if styles_media.get('__typename') == 'Video':
+            return True
+        if 'reel' in str(styles_media).lower():
+            return True
+        
+        # Check all_subattachments for videos or reels
+        for subattachment in attachment.get('all_subattachments', {}).get('nodes', []):
+            if 'media' in subattachment and subattachment['media'].get('__typename') == 'Video':
+                return True
+            if 'media' in subattachment and 'reel' in str(subattachment['media']).lower():
+                return True
+    
+    return False
+
+
+def extract_media(node, post_id):
     """Extract photo and video URLs from a post"""
     media = {
         'photos': [],
@@ -103,11 +208,14 @@ def extract_media(node):
             # Try to get photo from styles > attachment > media structure
             photo_data = attachment.get('styles', {}).get('attachment', {}).get('media', {})
             if 'photo_image' in photo_data:
+                image_url = photo_data['photo_image'].get('uri')
+                saved_filename = download_image(image_url, post_id)
                 media['photos'].append({
                     'id': attachment['media'].get('id'),
-                    'url': photo_data['photo_image'].get('uri'),
+                    'url': image_url,
                     'width': photo_data['photo_image'].get('width'),
-                    'height': photo_data['photo_image'].get('height')
+                    'height': photo_data['photo_image'].get('height'),
+                    'saved_as': saved_filename
                 })
         
         # Handle albums (multiple photos)
@@ -116,11 +224,14 @@ def extract_media(node):
                 if 'media' in subattachment and subattachment['media'].get('__typename') == 'Photo':
                     photo_data = subattachment.get('media', {})
                     if 'image' in photo_data:
+                        image_url = photo_data['image'].get('uri')
+                        saved_filename = download_image(image_url, post_id)
                         media['photos'].append({
                             'id': photo_data.get('id'),
-                            'url': photo_data['image'].get('uri'),
+                            'url': image_url,
                             'width': photo_data['image'].get('width'),
-                            'height': photo_data['image'].get('height')
+                            'height': photo_data['image'].get('height'),
+                            'saved_as': saved_filename
                         })
         
         # Handle video attachments
@@ -149,14 +260,27 @@ def extract_post_data(node):
     if message_obj:
         message = message_obj.get('text', '')
     
+    post_id = node.get('post_id')
+    if not post_id:
+        return None
+    
     post_data = {
         'id': node.get('id'),
-        'post_id': node.get('post_id'),
+        'post_id': post_id,
         'message': message,
         'permalink': node.get('permalink_url', ''),
-        'photos': extract_media(node)['photos'],
-        'videos': extract_media(node)['videos']
+        'photos': extract_media(node, post_id)['photos'],
+        'videos': extract_media(node, post_id)['videos']
     }
+    
+    # Save individual post to its own folder
+    post_dir = os.path.join("group_post", str(post_id))
+    os.makedirs(post_dir, exist_ok=True)
+    
+    post_file = os.path.join(post_dir, "post.json")
+    with open(post_file, "w", encoding="utf-8") as f:
+        json.dump(post_data, f, ensure_ascii=False, indent=2)
+    print(f"✓ Saved post {post_id} to {post_file}")
     
     return post_data
 
@@ -196,7 +320,7 @@ def fetch_posts(limit=10):
         }
         
         try:
-            r = requests.post(GRAPHQL_URL, headers=HEADERS, data=payload, proxies=PROXIES)
+            r = retry_request(GRAPHQL_URL, HEADERS, payload, PROXIES)
             r.raise_for_status()
         except requests.RequestException as e:
             print(f"Request failed: {e}")
@@ -224,6 +348,11 @@ def fetch_posts(limit=10):
             
             # Check if this item has a 'node' with a Story
             if 'node' in item and item['node'].get('__typename') == 'Story':
+                # Skip reels and video posts
+                if is_reel_or_video_post(item['node']):
+                    print(f"  ⏭️  Skipping reel/video post")
+                    continue
+                
                 post_data = extract_post_data(item['node'])
                 if post_data:
                     posts.append(post_data)

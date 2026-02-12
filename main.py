@@ -25,7 +25,7 @@ def extract_user_id_from_url(url):
     
     try:
         print(f"  Fetching page: {url}")
-        response = requests.get(url, headers=headers, timeout=20)
+        response = requests.get(url, headers=headers, proxies=PROXIES, timeout=20)
         html = response.text
         
         # Try multiple patterns to find user ID
@@ -60,7 +60,7 @@ def extract_post_id_from_url(url):
     
     try:
         print(f"  Fetching post: {url}")
-        response = requests.get(url, headers=headers, timeout=20)
+        response = requests.get(url, headers=headers, proxies=PROXIES, timeout=20)
         html = response.text
         
         # Extract og:url meta tag
@@ -112,13 +112,15 @@ def fetch_comments_for_post(post_id):
     comments = fetch_comments(feedback_id)
     
     for c in comments:
-        print(f"    🗨️ {c['author']}: {c['text'][:50]}...")
+        print(f"    🗨️ {c.get('text', '')[:50]}...")
         c["replies"] = fetch_replies(c)
         
         for r in c["replies"]:
-            print(f"       ↳ {r['author']}: {r['text'][:50]}...")
+            print(f"       ↳ {r.get('text', '')[:50]}...")
         
-        all_data.append(c)
+        # Remove internal fields before appending
+        c_clean = {k: v for k, v in c.items() if not k.startswith('_')}
+        all_data.append(c_clean)
     
     print(f"  ✓ Found {len(all_data)} comments")
     return all_data

@@ -22,6 +22,25 @@ PROXIES = {'http': PROXY, 'https': PROXY} if PROXY else None
 if PROXY:
     print(f"Using proxy: {PROXY}")
 
+# ========= RETRY HELPER =========
+def retry_request(url, headers, data, proxies, max_retries=5):
+    """Make a POST request with retry logic"""
+    for attempt in range(1, max_retries + 1):
+        try:
+            r = requests.post(url, headers=headers, data=data, proxies=proxies, timeout=30)
+            if r.status_code == 200:
+                return r
+            print(f"  ⚠️ Attempt {attempt}/{max_retries}: Status {r.status_code}")
+        except Exception as e:
+            print(f"  ⚠️ Attempt {attempt}/{max_retries}: {str(e)}")
+        
+        if attempt < max_retries:
+            wait_time = attempt * 2  # Exponential backoff: 2, 4, 6, 8, 10 seconds
+            print(f"  ⏳ Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+    
+    raise Exception(f"Failed after {max_retries} attempts")
+
 # ===== PAYLOADS =====
 
 def comments_payload(feedback_id, cursor=None):
@@ -90,11 +109,11 @@ def fetch_comments(feedback_id):
 
     while True:
         headers = {**BASE_HEADERS, "x-fb-friendly-name": "CommentsListComponentsPaginationQuery"}
-        r = requests.post(
+        r = retry_request(
             GRAPHQL,
-            headers=headers,
-            data=comments_payload(feedback_id, cursor),
-            proxies=PROXIES
+            headers,
+            comments_payload(feedback_id, cursor),
+            PROXIES
         )
         j = fb_json(r.text)
         
@@ -120,11 +139,11 @@ def fetch_comments(feedback_id):
             fb = n["feedback"]
 
             results.append({
-                "comment_id": n["legacy_fbid"],
-                "author": n["author"]["name"],
+                # "comment_id": n["legacy_fbid"],
+                # "author": n["author"]["name"],
                 "text": (n.get("body") or {}).get("text", ""),
-                "feedback_id": fb["id"],
-                "expansion_token": fb["expansion_info"]["expansion_token"]
+                "_feedback_id": fb["id"],  # Internal use only (for fetching replies)
+                "_expansion_token": fb["expansion_info"]["expansion_token"]  # Internal use only
             })
 
         cursor = comments_block.get("page_info", {}).get("end_cursor")
@@ -140,11 +159,11 @@ def fetch_comments(feedback_id):
 
 def fetch_replies(comment):
     headers = {**BASE_HEADERS, "x-fb-friendly-name": "Depth1CommentsListPaginationQuery"}
-    r = requests.post(
+    r = retry_request(
         GRAPHQL,
-        headers=headers,
-        data=replies_payload(comment["feedback_id"], comment["expansion_token"]),
-        proxies=PROXIES
+        headers,
+        replies_payload(comment["_feedback_id"], comment["_expansion_token"]),
+        PROXIES
     )
 
     j = fb_json(r.text)
@@ -160,10 +179,9 @@ def fetch_replies(comment):
     for e in edges:
         n = e["node"]
         replies.append({
-            "reply_id": n["legacy_fbid"],
-            "author": n["author"]["name"],
+            # "reply_id": n["legacy_fbid"],
+            # "author": n["author"]["name"],
             "text": (n.get("body") or {}).get("text", "")
-
         })
 
     return replies
