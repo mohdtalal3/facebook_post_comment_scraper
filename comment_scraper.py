@@ -172,7 +172,7 @@ def fetch_comments(feedback_id):
         if not cursor:
             break
 
-        time.sleep(0.4)
+        #time.sleep(0.4)
 
     return results, post_info
 
