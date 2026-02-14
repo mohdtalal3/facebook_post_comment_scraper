@@ -14,6 +14,7 @@ load_dotenv()
 from comment_scraper import fetch_comments, fetch_replies, fb_json, GRAPHQL, PROXIES
 from post_scraper import fetch_posts as fetch_page_posts, extract_media as extract_page_media, parse_fb_response as parse_page_response
 from group_post_scraper_v2 import fetch_posts as fetch_group_posts
+from single_post_image import fetch_all_images
 
 
 def extract_user_id_from_url(url):
@@ -74,8 +75,8 @@ def extract_post_id_from_url(url):
         if og_url_match:
             og_url = unescape(og_url_match.group(1))
             
-            # Case 1: /posts/.../POST_ID/
-            m = re.search(r'/posts/.+?/(\d+)/', og_url)
+            # Case 1: /posts/POST_ID/ (group posts) or /posts/.../POST_ID/ (user posts)
+            m = re.search(r'/posts/(?:[^/]+/)?(\d+)', og_url)
             
             # Case 2: permalink.php?story_fbid=POST_ID
             if not m:
@@ -109,7 +110,7 @@ def fetch_comments_for_post(post_id):
     print(f"  Using feedback_id: {feedback_id}")
     
     all_data = []
-    comments = fetch_comments(feedback_id)
+    comments, post_info = fetch_comments(feedback_id)
     
     for c in comments:
         print(f"    🗨️ {c.get('text', '')[:50]}...")
@@ -123,7 +124,7 @@ def fetch_comments_for_post(post_id):
         all_data.append(c_clean)
     
     print(f"  ✓ Found {len(all_data)} comments")
-    return all_data
+    return all_data, post_info
 
 
 def save_post_data(post_type, post_id, post_data, comments_data):
@@ -192,15 +193,78 @@ def scrape_simple_post():
         return
     
     print(f"\nFetching comments for post {post_id}...")
-    comments = fetch_comments_for_post(post_id)
+    comments, post_info = fetch_comments_for_post(post_id)
     
     # Save data
     post_data = {
         "post_id": post_id,
-        "type": "simple_post"
+        "type": "simple_post",
+        "post_info": post_info
     }
     
     save_post_data("simple_post", post_id, post_data, comments)
+    
+    # Fetch images if media_id is available
+    if post_info and post_info.get("media_id"):
+        media_id = post_info["media_id"]
+        print(f"\n📸 Fetching images for media_id: {media_id}")
+        
+        # Create image folder inside the post folder
+        image_folder = os.path.join("simple_post", post_id, "images")
+        
+        try:
+            # Temporarily change the folder in single_post_image
+            import single_post_image
+            original_fetch = single_post_image.fetch_all_images
+            
+            # Create custom wrapper to use our folder
+            def custom_fetch(node_id, p_id):
+                current_node = node_id
+                visited = set()
+                
+                while current_node and current_node not in visited:
+                    print(f"\n➡ Fetching node: {current_node}")
+                    visited.add(current_node)
+                    
+                    payload = single_post_image.build_payload(current_node, p_id)
+                    r = requests.post(single_post_image.GRAPHQL_URL, headers=single_post_image.HEADERS, data=payload)
+                    
+                    cleaned_blocks = single_post_image.process_raw_graphql(r.text)
+                    if not cleaned_blocks:
+                        break
+                    
+                    # Extract image
+                    image_url = None
+                    for block in cleaned_blocks:
+                        if "currMedia" in block:
+                            image_url = block["currMedia"].get("image", {}).get("uri")
+                            break
+                    
+                    if image_url:
+                        single_post_image.download_image(image_url, image_folder)
+                    
+                    # Get next node
+                    next_node = None
+                    for block in cleaned_blocks:
+                        if "nextMediaAfterNodeId" in block and block["nextMediaAfterNodeId"]:
+                            node_id_next = block["nextMediaAfterNodeId"].get("id")
+                            if node_id_next:
+                                next_node = node_id_next
+                                break
+                    
+                    if next_node:
+                        current_node = next_node
+                    else:
+                        print("✅ No more images.")
+                        break
+            
+            custom_fetch(media_id, post_id)
+            print(f"  ✅ Images saved to {image_folder}")
+        except Exception as e:
+            print(f"  ⚠️ Error fetching images: {e}")
+    else:
+        print("  ℹ️ No media_id found, skipping image download")
+    
     print(f"\n✅ Done! Saved to simple_post/{post_id}/")
 
 
@@ -263,7 +327,7 @@ def scrape_page_posts():
         print(f"\n[{i}/{len(posts)}] Processing post {post_id}...")
         
         try:
-            comments = fetch_comments_for_post(post_id)
+            comments, _ = fetch_comments_for_post(post_id)
             save_post_data("page_post", post_id, post, comments)
             time.sleep(1)  # Be nice to the server
         except Exception as e:
@@ -309,7 +373,7 @@ def scrape_group_posts():
         print(f"\n[{i}/{len(posts)}] Processing post {post_id}...")
         
         try:
-            comments = fetch_comments_for_post(post_id)
+            comments, _ = fetch_comments_for_post(post_id)
             save_post_data("group_post", post_id, post, comments)
             time.sleep(1)  # Be nice to the server
         except Exception as e:
@@ -349,3 +413,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+1

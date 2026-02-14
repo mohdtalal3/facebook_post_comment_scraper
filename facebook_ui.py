@@ -3,6 +3,7 @@ import os
 import json
 import time
 import re
+import requests
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QLineEdit, QPushButton, 
                              QTextEdit, QComboBox, QSpinBox, QTabWidget,
@@ -17,6 +18,7 @@ from post_scraper import fetch_posts as fetch_page_posts
 from group_post_scraper_v2 import fetch_posts as fetch_group_posts
 import post_scraper
 import group_post_scraper_v2
+import single_post_image
 
 
 class ScraperThread(QThread):
@@ -53,16 +55,75 @@ class ScraperThread(QThread):
         post_id = self.params['post_id']
         
         self.log(f"Fetching comments for post {post_id}...")
-        comments = fetch_comments_for_post(post_id)
+        comments, post_info = fetch_comments_for_post(post_id)
         
         # Save data
         post_data = {
             "post_id": post_id,
-            "type": "simple_post"
+            "type": "simple_post",
+            "post_info": post_info
         }
         
         save_post_data("simple_post", post_id, post_data, comments)
-        self.log(f"✅ Done! Saved to simple_post/{post_id}/")
+        self.log(f"✅ Saved to simple_post/{post_id}/")
+        
+        # Fetch images if media_id is available
+        if post_info and post_info.get("media_id"):
+            media_id = post_info["media_id"]
+            self.log(f"📸 Fetching images for media_id: {media_id}")
+            
+            image_folder = os.path.join("simple_post", post_id, "images")
+            
+            try:
+                current_node = media_id
+                visited = set()
+                image_count = 0
+                
+                while current_node and current_node not in visited:
+                    self.log(f"  ➡ Fetching node: {current_node}")
+                    visited.add(current_node)
+                    
+                    payload = single_post_image.build_payload(current_node, post_id)
+                    r = requests.post(single_post_image.GRAPHQL_URL, 
+                                    headers=single_post_image.HEADERS, 
+                                    data=payload, 
+                                    proxies=single_post_image.PROXIES)
+                    
+                    cleaned_blocks = single_post_image.process_raw_graphql(r.text)
+                    if not cleaned_blocks:
+                        break
+                    
+                    # Extract image
+                    image_url = None
+                    for block in cleaned_blocks:
+                        if "currMedia" in block:
+                            image_url = block["currMedia"].get("image", {}).get("uri")
+                            break
+                    
+                    if image_url:
+                        filename = single_post_image.download_image(image_url, image_folder)
+                        if filename:
+                            image_count += 1
+                            self.log(f"    ✓ Downloaded image {image_count}")
+                    
+                    # Get next node
+                    next_node = None
+                    for block in cleaned_blocks:
+                        if "nextMediaAfterNodeId" in block and block["nextMediaAfterNodeId"]:
+                            node_id_next = block["nextMediaAfterNodeId"].get("id")
+                            if node_id_next:
+                                next_node = node_id_next
+                                break
+                    
+                    if next_node:
+                        current_node = next_node
+                    else:
+                        self.log(f"  ✅ Downloaded {image_count} images")
+                        break
+                        
+            except Exception as e:
+                self.log(f"  ⚠️ Error fetching images: {e}")
+        
         self.finished_signal.emit(True, f"Successfully scraped {len(comments)} comments")
     
     def scrape_page_posts(self):
@@ -91,7 +152,7 @@ class ScraperThread(QThread):
             self.log(f"[{i}/{len(posts)}] Processing post {post_id}...")
             
             try:
-                comments = fetch_comments_for_post(post_id)
+                comments, _ = fetch_comments_for_post(post_id)
                 save_post_data("page_post", post_id, post, comments)
                 self.log(f"  ✓ Saved {len(comments)} comments")
                 time.sleep(1)  # Be nice to the server
@@ -130,7 +191,7 @@ class ScraperThread(QThread):
             self.log(f"[{i}/{len(posts)}] Processing post {post_id}...")
             
             try:
-                comments = fetch_comments_for_post(post_id)
+                comments, _ = fetch_comments_for_post(post_id)
                 save_post_data("group_post", post_id, post, comments)
                 self.log(f"  ✓ Saved {len(comments)} comments")
                 time.sleep(1)  # Be nice to the server

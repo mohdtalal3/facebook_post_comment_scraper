@@ -106,6 +106,7 @@ def fetch_comments(feedback_id):
     results = []
     cursor = None
     response_count = 0
+    post_info = None  # Store parent post info from first response
 
     while True:
         headers = {**BASE_HEADERS, "x-fb-friendly-name": "CommentsListComponentsPaginationQuery"}
@@ -138,6 +139,26 @@ def fetch_comments(feedback_id):
             n = e["node"]
             fb = n["feedback"]
 
+            # Extract parent_post_story info from first response
+            if response_count == 1 and post_info is None:
+                parent_post_story = n.get("parent_post_story", {})
+                
+                if parent_post_story:
+                    post_info = {
+                        "post_story_id": parent_post_story.get("id"),
+                        "media_id": None
+                    }
+                    
+                    # Extract first media ID
+                    attachments = parent_post_story.get("attachments", [])
+                    for attachment in attachments:
+                        media = attachment.get("media", {})
+                        if media and media.get("id"):
+                            post_info["media_id"] = media.get("id")
+                            break  # Only get first one
+                    
+                    print(f"📎 Extracted post info: {post_info}")
+
             results.append({
                 # "comment_id": n["legacy_fbid"],
                 # "author": n["author"]["name"],
@@ -153,7 +174,7 @@ def fetch_comments(feedback_id):
 
         time.sleep(0.4)
 
-    return results
+    return results, post_info
 
 # ===== FETCH REPLIES =====
 
@@ -189,11 +210,17 @@ def fetch_replies(comment):
 # ===== RUN =====
 
 if __name__ == "__main__":
-    POST_FEEDBACK_ID = "ZmVlZGJhY2s6MTQ1NTkzMDg2NjMyOTg1MQ=="
+    POST_FEEDBACK_ID = "ZmVlZGJhY2s6MTQyMDI2OTMwMjc5MDQyOA=="
 
     all_data = []
 
-    comments = fetch_comments(POST_FEEDBACK_ID)
+    comments, post_info = fetch_comments(POST_FEEDBACK_ID)
+    
+    # Add post info to the output
+    output = {
+        "post_info": post_info,
+        "comments": []
+    }
 
     for c in comments:
         print(f"\n🗨️ {c['author']}: {c['text']}")
@@ -202,9 +229,10 @@ if __name__ == "__main__":
         for r in c["replies"]:
             print(f"   ↳ {r['author']}: {r['text']}")
 
-        all_data.append(c)
+        output["comments"].append(c)
 
     with open("comments.json", "w", encoding="utf-8") as f:
-        json.dump(all_data, f, ensure_ascii=False, indent=2)
+        json.dump(output, f, ensure_ascii=False, indent=2)
 
     print("\n✅ DONE — saved to comments.json")
+
