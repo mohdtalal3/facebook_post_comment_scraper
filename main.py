@@ -133,17 +133,17 @@ def save_post_data(post_type, post_id, post_data, comments_data):
     folder_path = os.path.join(post_type, post_id)
     os.makedirs(folder_path, exist_ok=True)
     
-    # Save post data
-    post_file = os.path.join(folder_path, "post.json")
-    with open(post_file, "w", encoding="utf-8") as f:
-        json.dump(post_data, f, ensure_ascii=False, indent=2)
-    print(f"  📄 Saved post data to {post_file}")
+    # Combine post and comments in single file
+    combined_data = {
+        **post_data,
+        "comments": comments_data
+    }
     
-    # Save comments data
-    comments_file = os.path.join(folder_path, "comments.json")
-    with open(comments_file, "w", encoding="utf-8") as f:
-        json.dump(comments_data, f, ensure_ascii=False, indent=2)
-    print(f"  💬 Saved {len(comments_data)} comments to {comments_file}")
+    # Save as {post_id}.json
+    output_file = os.path.join(folder_path, f"{post_id}.json")
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(combined_data, f, ensure_ascii=False, indent=2)
+    print(f"  💾 Saved to {output_file}")
 
 
 def display_menu():
@@ -209,8 +209,8 @@ def scrape_simple_post():
         media_id = post_info["media_id"]
         print(f"\n📸 Fetching images for media_id: {media_id}")
         
-        # Create image folder inside the post folder
-        image_folder = os.path.join("simple_post", post_id, "images")
+        # Images will be saved directly in post folder
+        image_folder = os.path.join("simple_post", post_id)
         
         try:
             # Temporarily change the folder in single_post_image
@@ -221,6 +221,7 @@ def scrape_simple_post():
             def custom_fetch(node_id, p_id):
                 current_node = node_id
                 visited = set()
+                image_count = 0
                 
                 while current_node and current_node not in visited:
                     print(f"\n➡ Fetching node: {current_node}")
@@ -241,7 +242,18 @@ def scrape_simple_post():
                             break
                     
                     if image_url:
-                        single_post_image.download_image(image_url, image_folder)
+                        image_count += 1
+                        # Save as {post_id}.jpg or {post_id}_2.jpg etc
+                        filename = f"{post_id}.jpg" if image_count == 1 else f"{post_id}_{image_count}.jpg"
+                        filepath = os.path.join(image_folder, filename)
+                        try:
+                            r_img = requests.get(image_url, proxies=single_post_image.PROXIES, timeout=30)
+                            r_img.raise_for_status()
+                            with open(filepath, "wb") as f:
+                                f.write(r_img.content)
+                            print(f"📥 Saved {filename}")
+                        except Exception as e:
+                            print(f"❌ Failed to download: {e}")
                     
                     # Get next node
                     next_node = None

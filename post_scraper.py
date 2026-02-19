@@ -34,8 +34,8 @@ def retry_request(url, headers, data, proxies, max_retries=5):
     raise Exception(f"Failed after {max_retries} attempts")
 
 
-def download_image(url, post_id, save_dir="page_post"):
-    """Download image from URL and save with random UUID in post folder"""
+def download_image(url, post_id, image_index=1, save_dir="page_post"):
+    """Download image from URL and save as {post_id}.jpg or {post_id}_2.jpg etc"""
     if not url or not post_id:
         return None
     
@@ -44,9 +44,6 @@ def download_image(url, post_id, save_dir="page_post"):
         post_dir = os.path.join(save_dir, str(post_id))
         os.makedirs(post_dir, exist_ok=True)
         
-        # Generate random UUID for filename
-        random_id = str(uuid.uuid4())
-        
         # Get file extension from URL or default to .jpg
         ext = ".jpg"
         if ".png" in url.lower():
@@ -54,7 +51,8 @@ def download_image(url, post_id, save_dir="page_post"):
         elif ".jpeg" in url.lower():
             ext = ".jpeg"
         
-        filename = f"{random_id}{ext}"
+        # Name as {post_id}.jpg or {post_id}_2.jpg etc
+        filename = f"{post_id}{ext}" if image_index == 1 else f"{post_id}_{image_index}{ext}"
         filepath = os.path.join(post_dir, filename)
         
         # Download the image
@@ -200,7 +198,16 @@ def is_reel_or_video_post(node):
     return False
 
 
+# Global counter for tracking image indices per post
+_image_counters = {}
+
 def extract_media(node, post_id):
+    global _image_counters
+    
+    # Initialize counter for this post if not exists
+    if post_id not in _image_counters:
+        _image_counters[post_id] = 0
+    
     media = []
 
     attachments = node.get("attachments") or []
@@ -213,16 +220,18 @@ def extract_media(node, post_id):
         if single_media:
             # Single photo case
             if "photo_image" in single_media:
+                _image_counters[post_id] += 1
                 image_url = single_media["photo_image"]["uri"]
-                saved_filename = download_image(image_url, post_id)
+                saved_filename = download_image(image_url, post_id, _image_counters[post_id])
                 media.append({
                     "type": "photo",
                     "url": image_url,
                     "saved_as": saved_filename
                 })
             elif "image" in single_media:
+                _image_counters[post_id] += 1
                 image_url = single_media["image"]["uri"]
-                saved_filename = download_image(image_url, post_id)
+                saved_filename = download_image(image_url, post_id, _image_counters[post_id])
                 media.append({
                     "type": "photo",
                     "url": image_url,
@@ -241,8 +250,9 @@ def extract_media(node, post_id):
             media_node = m.get("media") or {}
 
             if "image" in media_node:
+                _image_counters[post_id] += 1
                 image_url = media_node["image"]["uri"]
-                saved_filename = download_image(image_url, post_id)
+                saved_filename = download_image(image_url, post_id, _image_counters[post_id])
                 media.append({
                     "type": "photo",
                     "url": image_url,
@@ -357,14 +367,14 @@ def fetch_posts(limit):
                 "media": extract_media(node, post_id),
             }
             
-            # Save individual post to its own folder
+            # Save individual post to its own folder as {post_id}.json
             post_dir = os.path.join("page_post", str(post_id))
             os.makedirs(post_dir, exist_ok=True)
             
-            post_file = os.path.join(post_dir, "post.json")
+            post_file = os.path.join(post_dir, f"{post_id}.json")
             with open(post_file, "w", encoding="utf-8") as f:
                 json.dump(post, f, ensure_ascii=False, indent=2)
-            print(f"✓ Saved post {post_id} to {post_file}")
+            print(f"✓ Saved to {post_file}")
 
             posts.append(post)
 

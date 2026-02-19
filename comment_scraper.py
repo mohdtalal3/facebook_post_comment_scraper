@@ -159,10 +159,15 @@ def fetch_comments(feedback_id):
                     
                     print(f"📎 Extracted post info: {post_info}")
 
+            # Extract reaction count
+            reactors = fb.get("reactors", {})
+            total_reactions = reactors.get("count_reduced", "0")
+            
             results.append({
                 # "comment_id": n["legacy_fbid"],
                 # "author": n["author"]["name"],
                 "text": (n.get("body") or {}).get("text", ""),
+                "reaction_count": total_reactions,
                 "_feedback_id": fb["id"],  # Internal use only (for fetching replies)
                 "_expansion_token": fb["expansion_info"]["expansion_token"]  # Internal use only
             })
@@ -199,10 +204,17 @@ def fetch_replies(comment):
 
     for e in edges:
         n = e["node"]
+        fb = n.get("feedback", {})
+        
+        # Extract reaction count
+        reactors = fb.get("reactors", {})
+        total_reactions = reactors.get("count_reduced", "0")
+        
         replies.append({
             # "reply_id": n["legacy_fbid"],
             # "author": n["author"]["name"],
-            "text": (n.get("body") or {}).get("text", "")
+            "text": (n.get("body") or {}).get("text", ""),
+            "reaction_count": total_reactions
         })
 
     return replies
@@ -211,6 +223,7 @@ def fetch_replies(comment):
 
 if __name__ == "__main__":
     POST_FEEDBACK_ID = "ZmVlZGJhY2s6MTQyMDI2OTMwMjc5MDQyOA=="
+    POST_ID = "1420269302790428"  # The actual post ID
 
     all_data = []
 
@@ -223,16 +236,21 @@ if __name__ == "__main__":
     }
 
     for c in comments:
-        print(f"\n🗨️ {c['author']}: {c['text']}")
+        # print(f"\n🗨️ {c['author']}: {c['text']}")
         c["replies"] = fetch_replies(c)
 
-        for r in c["replies"]:
-            print(f"   ↳ {r['author']}: {r['text']}")
+        # for r in c["replies"]:
+        #     print(f"   ↳ {r['author']}: {r['text']}")
 
         output["comments"].append(c)
 
-    with open("comments.json", "w", encoding="utf-8") as f:
+    # Create directory for this post
+    os.makedirs(f"simple_post/{POST_ID}", exist_ok=True)
+    
+    # Save as {post_id}.json
+    output_file = f"simple_post/{POST_ID}/{POST_ID}.json"
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
-    print("\n✅ DONE — saved to comments.json")
+    print(f"💬 Saved to {output_file}")
 

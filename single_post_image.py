@@ -114,11 +114,11 @@ def process_raw_graphql(raw_text):
 # DOWNLOAD IMAGE WITH RETRY
 # ======================================
 
-def download_image(url, folder, max_retries=3):
-    """Download image with retry logic and proxy support"""
+def download_image(url, folder, post_id, image_index=1, max_retries=3):
+    """Download image with retry logic and proxy support as {post_id}.jpg or {post_id}_2.jpg"""
     os.makedirs(folder, exist_ok=True)
     
-    filename = f"{uuid.uuid4()}.jpg"
+    filename = f"{post_id}.jpg" if image_index == 1 else f"{post_id}_{image_index}.jpg"
     path = os.path.join(folder, filename)
     
     for attempt in range(1, max_retries + 1):
