@@ -597,9 +597,9 @@ def fetch_posts(limit=10, min_comments=0, batch_size=10, on_batch_complete=None)
             break
         
         # Save raw response for debugging
-        with open(f"group_raw_page_{page_num}.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"Saved group_raw_page_{page_num}.json")
+        # with open(f"group_raw_page_{page_num}.json", "w", encoding="utf-8") as f:
+        #     json.dump(data, f, ensure_ascii=False, indent=2)
+        # print(f"Saved group_raw_page_{page_num}.json")
         
         # Extract posts from the response array
         posts_found = 0

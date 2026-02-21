@@ -515,10 +515,10 @@ def fetch_posts(limit=10, min_comments=0, batch_size=10, on_batch_complete=None)
                 else:
                     print(f"  ❌ Empty response after {max_empty_retries} attempts, skipping page")
         
-        # Save cleaned data for verification
-        with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
-            json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
-        print(f"Saved cleaned_page_{page_num}.json")
+        # # Save cleaned data for verification
+        # with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
+        #     json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
+        # print(f"Saved cleaned_page_{page_num}.json")
         
         # If still empty after retries, stop pagination (can't get next cursor from empty response)
         if not cleaned_data or len(cleaned_data) == 0:
