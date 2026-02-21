@@ -52,7 +52,8 @@ def comments_payload(feedback_id, cursor=None):
         "variables": json.dumps({
             "commentsAfterCount": -1,
             "commentsAfterCursor": cursor,
-            "feedLocation": "POST_PERMALINK_DIALOG",
+            "commentsIntentToken": "REVERSE_CHRONOLOGICAL_UNFILTERED_INTENT_V1",
+            "feedLocation": "DEDICATED_COMMENTING_SURFACE",
             "focusCommentID": None,
             "scale": 2,
             "useDefaultActor": False,
@@ -222,7 +223,7 @@ def fetch_replies(comment):
 # ===== RUN =====
 
 if __name__ == "__main__":
-    POST_FEEDBACK_ID = "ZmVlZGJhY2s6MTQyMDI2OTMwMjc5MDQyOA=="
+    POST_FEEDBACK_ID = "ZmVlZGJhY2s6MTg3NDE2NTYxMzI0NjAwMw=="
     POST_ID = "1420269302790428"  # The actual post ID
 
     all_data = []

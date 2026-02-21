@@ -177,29 +177,34 @@ class ScraperThread(QThread):
                 post_scraper.USER_ID = page_id
                 post_scraper.BASE_HEADERS["referer"] = f"https://www.facebook.com/profile.php?id={page_id}"
                 
-                self.log(f"  Fetching {count} posts from page {page_id}...")
-                posts = fetch_page_posts(count)
+                min_comments = self.params.get('min_comments', 0)
+                batch_size = 2  # Process in batches of 10
                 
-                self.log(f"  ✓ Found {len(posts)} posts. Now fetching comments...")
+                # Define callback to process each batch
+                def process_batch(batch_posts, total_so_far, total_limit):
+                    self.log(f"  Processing batch of {len(batch_posts)} posts ({total_so_far}/{total_limit})...")
+                    for i, post in enumerate(batch_posts, 1):
+                        post_id = post.get("post_id")
+                        if not post_id:
+                            self.log(f"    [{i}/{len(batch_posts)}] ⚠️ Skipping post with no ID")
+                            continue
+                        
+                        self.log(f"    [{i}/{len(batch_posts)}] Processing post {post_id}...")
+                        
+                        try:
+                            comments, _ = fetch_comments_for_post(post_id)
+                            save_post_data("page_post", post_id, post, comments)
+                            self.log(f"      ✓ Saved to page_post/{post_id}/{post_id}.json")
+                            time.sleep(1)  # Be nice to the server
+                        except Exception as e:
+                            self.log(f"      ❌ Error fetching comments: {e}")
+                            # Save post data even if comments fail
+                            save_post_data("page_post", post_id, post, [])
                 
-                # Fetch comments for each post
-                for i, post in enumerate(posts, 1):
-                    post_id = post.get("post_id")
-                    if not post_id:
-                        self.log(f"    [{i}/{len(posts)}] ⚠️ Skipping post with no ID")
-                        continue
-                    
-                    self.log(f"    [{i}/{len(posts)}] Processing post {post_id}...")
-                    
-                    try:
-                        comments, _ = fetch_comments_for_post(post_id)
-                        save_post_data("page_post", post_id, post, comments)
-                        self.log(f"      ✓ Saved to page_post/{post_id}/{post_id}.json")
-                        time.sleep(1)  # Be nice to the server
-                    except Exception as e:
-                        self.log(f"      ❌ Error fetching comments: {e}")
-                        # Save post data even if comments fail
-                        save_post_data("page_post", post_id, post, [])
+                self.log(f"  Fetching {count} posts from page {page_id} (batch size: {batch_size})...")
+                posts = fetch_page_posts(count, min_comments, batch_size=batch_size, on_batch_complete=process_batch)
+                
+                self.log(f"  ✓ Completed: {len(posts)} posts processed")
                 
                 all_posts_count += len(posts)
                 
@@ -236,29 +241,34 @@ class ScraperThread(QThread):
                 group_post_scraper_v2.GROUP_ID = group_id
                 group_post_scraper_v2.HEADERS["referer"] = f"https://www.facebook.com/groups/{group_id}/"
                 
-                self.log(f"  Fetching {count} posts from group {group_id}...")
-                posts = fetch_group_posts(count)
+                min_comments = self.params.get('min_comments', 0)
+                batch_size = 2  # Process in batches of 10
                 
-                self.log(f"  ✓ Found {len(posts)} posts. Now fetching comments...")
+                # Define callback to process each batch
+                def process_batch(batch_posts, total_so_far, total_limit):
+                    self.log(f"  Processing batch of {len(batch_posts)} posts ({total_so_far}/{total_limit})...")
+                    for i, post in enumerate(batch_posts, 1):
+                        post_id = post.get("post_id")
+                        if not post_id:
+                            self.log(f"    [{i}/{len(batch_posts)}] ⚠️ Skipping post with no ID")
+                            continue
+                        
+                        self.log(f"    [{i}/{len(batch_posts)}] Processing post {post_id}...")
+                        
+                        try:
+                            comments, _ = fetch_comments_for_post(post_id)
+                            save_post_data("group_post", post_id, post, comments)
+                            self.log(f"      ✓ Saved to group_post/{post_id}/{post_id}.json")
+                            time.sleep(1)  # Be nice to the server
+                        except Exception as e:
+                            self.log(f"      ❌ Error fetching comments: {e}")
+                            # Save post data even if comments fail
+                            save_post_data("group_post", post_id, post, [])
                 
-                # Fetch comments for each post
-                for i, post in enumerate(posts, 1):
-                    post_id = post.get("post_id")
-                    if not post_id:
-                        self.log(f"    [{i}/{len(posts)}] ⚠️ Skipping post with no ID")
-                        continue
-                    
-                    self.log(f"    [{i}/{len(posts)}] Processing post {post_id}...")
-                    
-                    try:
-                        comments, _ = fetch_comments_for_post(post_id)
-                        save_post_data("group_post", post_id, post, comments)
-                        self.log(f"      ✓ Saved to group_post/{post_id}/{post_id}.json")
-                        time.sleep(1)  # Be nice to the server
-                    except Exception as e:
-                        self.log(f"      ❌ Error fetching comments: {e}")
-                        # Save post data even if comments fail
-                        save_post_data("group_post", post_id, post, [])
+                self.log(f"  Fetching {count} posts from group {group_id} (batch size: {batch_size})...")
+                posts = fetch_group_posts(count, min_comments, batch_size=batch_size, on_batch_complete=process_batch)
+                
+                self.log(f"  ✓ Completed: {len(posts)} posts processed")
                 
                 all_posts_count += len(posts)
                 
@@ -382,11 +392,24 @@ class FacebookScraperUI(QMainWindow):
         count_layout.addWidget(QLabel("Number of posts:"))
         self.page_post_count = QSpinBox()
         self.page_post_count.setMinimum(1)
-        self.page_post_count.setMaximum(100)
+        self.page_post_count.setMaximum(100000)
         self.page_post_count.setValue(5)
+        self.page_post_count.setMinimumWidth(150)
         count_layout.addWidget(self.page_post_count)
         count_layout.addStretch()
         input_layout.addLayout(count_layout)
+        
+        # Comment threshold
+        comment_layout = QHBoxLayout()
+        comment_layout.addWidget(QLabel("Min comments (0 = all posts):"))
+        self.page_min_comments = QSpinBox()
+        self.page_min_comments.setMinimum(0)
+        self.page_min_comments.setMaximum(10000)
+        self.page_min_comments.setValue(0)
+        self.page_min_comments.setToolTip("Only scrape posts with at least this many comments. Set to 0 to include all posts.")
+        comment_layout.addWidget(self.page_min_comments)
+        comment_layout.addStretch()
+        input_layout.addLayout(comment_layout)
         
         layout.addWidget(input_group)
         
@@ -422,11 +445,24 @@ class FacebookScraperUI(QMainWindow):
         count_layout.addWidget(QLabel("Number of posts:"))
         self.group_post_count = QSpinBox()
         self.group_post_count.setMinimum(1)
-        self.group_post_count.setMaximum(100)
+        self.group_post_count.setMaximum(10000)
         self.group_post_count.setValue(5)
+        self.group_post_count.setMinimumWidth(150)
         count_layout.addWidget(self.group_post_count)
         count_layout.addStretch()
         input_layout.addLayout(count_layout)
+        
+        # Comment threshold
+        comment_layout = QHBoxLayout()
+        comment_layout.addWidget(QLabel("Min comments (0 = all posts):"))
+        self.group_min_comments = QSpinBox()
+        self.group_min_comments.setMinimum(0)
+        self.group_min_comments.setMaximum(10000)
+        self.group_min_comments.setValue(0)
+        self.group_min_comments.setToolTip("Only scrape posts with at least this many comments. Set to 0 to include all posts.")
+        comment_layout.addWidget(self.group_min_comments)
+        comment_layout.addStretch()
+        input_layout.addLayout(comment_layout)
         
         layout.addWidget(input_group)
         
@@ -463,6 +499,7 @@ class FacebookScraperUI(QMainWindow):
         """Start scraping posts from page URLs"""
         urls_text = self.page_urls.toPlainText().strip()
         count = self.page_post_count.value()
+        min_comments = self.page_min_comments.value()
         
         if not urls_text:
             self.show_error("Please enter page URLs")
@@ -476,14 +513,16 @@ class FacebookScraperUI(QMainWindow):
             return
         
         # Start scraping in background thread
-        self.log(f"Starting page posts scraper for {len(urls)} page(s) (fetching {count} posts each)...")
-        params = {'urls': urls, 'count': count}
+        comment_filter_msg = f" with min {min_comments} comments" if min_comments > 0 else ""
+        self.log(f"Starting page posts scraper for {len(urls)} page(s) (fetching {count} posts each{comment_filter_msg})...")
+        params = {'urls': urls, 'count': count, 'min_comments': min_comments}
         self.start_scraping("page_posts", params)
     
     def scrape_group_posts(self):
         """Start scraping posts from group URLs"""
         urls_text = self.group_urls.toPlainText().strip()
         count = self.group_post_count.value()
+        min_comments = self.group_min_comments.value()
         
         if not urls_text:
             self.show_error("Please enter group URLs")
@@ -497,8 +536,9 @@ class FacebookScraperUI(QMainWindow):
             return
         
         # Start scraping in background thread
-        self.log(f"Starting group posts scraper for {len(urls)} group(s) (fetching {count} posts each)...")
-        params = {'urls': urls, 'count': count}
+        comment_filter_msg = f" with min {min_comments} comments" if min_comments > 0 else ""
+        self.log(f"Starting group posts scraper for {len(urls)} group(s) (fetching {count} posts each{comment_filter_msg})...")
+        params = {'urls': urls, 'count': count, 'min_comments': min_comments}
         self.start_scraping("group_posts", params)
     
     def start_scraping(self, scraper_type, params):

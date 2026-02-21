@@ -38,6 +38,48 @@ A powerful Python-based Facebook scraping tool with a PyQt6 GUI interface for ex
   - JSON export for easy data processing
   - Direct GraphQL API communication
 
+## 🆕 Latest Enhancements (v2.0)
+
+- **🎯 Enhanced Comment Detection**:
+  - 6 extraction paths for comment counts
+  - Handles deeply nested comment structures
+  - Ensures posts with 49+ comments are correctly detected
+  - Never skips posts due to missing comment count data
+
+- **🔍 Advanced Story Node Discovery**:
+  - Multi-location Story node detection (Group edges, timeline edges, direct nodes)
+  - Handles complex JSON structures from Facebook's varying response formats
+  - Discovers posts that were previously hidden in nested structures
+
+- **📸 Complete Album Scraping**:
+  - Automatically fetches ALL images from posts (up to 50 per post)
+  - Uses media ID iteration to navigate through large albums
+  - No longer limited to first 5 images
+  - Perfect for posts with 10-20+ images
+
+- **♻️ Smart Deduplication**:
+  - Detects already-scraped posts by checking saved JSON files
+  - Skips duplicate posts when resuming interrupted sessions
+  - Saves bandwidth and processing time
+  - Automatic folder structure validation
+
+- **🔄 Intelligent Retry Logic**:
+  - 3-attempt retry for transient Facebook API errors
+  - 2-second delays between retry attempts
+  - Handles empty response arrays gracefully
+  - Prevents infinite loops on persistent failures
+
+- **🎬 Content Filtering**:
+  - Automatic reel and video post detection and skipping
+  - Configurable minimum comment threshold
+  - Focus on high-engagement photo posts only
+
+- **🛡️ Robust Error Handling**:
+  - Safe pagination with proper break conditions
+  - No infinite loops on empty responses
+  - Comprehensive error logging
+  - Graceful degradation on failures
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -247,6 +289,17 @@ For issues, questions, or suggestions:
 
 ## ⚡ Roadmap
 
+**Completed:**
+- [x] Enhanced comment count detection with 6 extraction paths
+- [x] Advanced Story node discovery in nested structures
+- [x] Complete album scraping (up to 50 images per post)
+- [x] Post deduplication for interrupted sessions
+- [x] Automatic retry logic for transient API errors
+- [x] Robust pagination with proper error handling
+- [x] Reel/video filtering
+- [x] Configurable comment threshold filtering
+
+**Upcoming:**
 - [ ] Add support for Facebook Stories
 - [ ] Implement video download functionality
 - [ ] Add data export to CSV/Excel

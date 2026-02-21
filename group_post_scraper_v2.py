@@ -12,6 +12,7 @@ GRAPHQL_URL = "https://www.facebook.com/api/graphql/"
 
 # ========= CONFIG (FILL THESE) =========
 GROUP_ID = "363757814515154"  # group id
+GROUP_NAME = None  # Will be extracted automatically
 DOC_ID = "25716860671307636"  # GroupsCometFeedRegularStoriesPaginationQuery
 
 HEADERS = {
@@ -27,6 +28,36 @@ PROXIES = {'http': PROXY, 'https': PROXY} if PROXY else None
 
 if PROXY:
     print(f"Using proxy: {PROXY}")
+
+
+def extract_group_name(node):
+    """Extract group name from post node"""
+    try:
+        # Try from context_layout > story > comet_sections > title > story > to
+        context_layout = node.get('comet_sections', {}).get('context_layout', {})
+        story = context_layout.get('story', {})
+        title_section = story.get('comet_sections', {}).get('title', {})
+        title_story = title_section.get('story', {})
+        to_obj = title_story.get('to', {})
+        if to_obj.get('__typename') == 'Group':
+            return to_obj.get('name')
+        
+        # Try from content > story > target_group (if available)
+        content = node.get('comet_sections', {}).get('content', {})
+        content_story = content.get('story', {})
+        target_group = content_story.get('target_group', {})
+        if target_group and 'name' in target_group:
+            return target_group.get('name')
+        
+        # Try from feedback > associated_group
+        feedback = node.get('feedback', {})
+        associated_group = feedback.get('associated_group', {})
+        if associated_group and 'name' in associated_group:
+            return associated_group.get('name')
+        
+        return None
+    except Exception:
+        return None
 
 # ========= RETRY HELPER =========
 def retry_request(url, headers, data, proxies, max_retries=5):
@@ -83,6 +114,103 @@ def download_image(url, post_id, image_index=1, save_dir="group_post"):
     except Exception as e:
         print(f"  ❌ Failed to download image: {str(e)}")
         return None
+
+
+def fetch_remaining_images(last_media_id, post_id, current_image_count, save_dir="group_post"):
+    """Fetch remaining images using media ID iteration (for posts with 5+ images)"""
+    if not last_media_id or not post_id:
+        return []
+    
+    print(f"  🔄 Fetching remaining images after image #{current_image_count}...")
+    
+    DOC_ID_PHOTO = "26168653472729001"  # CometPhotoRootContentQuery
+    HEADERS_PHOTO = {
+        "user-agent": "Mozilla/5.0",
+        "content-type": "application/x-www-form-urlencoded",
+        "origin": "https://www.facebook.com",
+        "x-fb-friendly-name": "CometPhotoRootContentQuery"
+    }
+    
+    remaining_photos = []
+    current_node = last_media_id
+    visited = set()
+    image_index = current_image_count + 1
+    
+    while current_node and current_node not in visited and image_index <= 50:  # Max 50 images safety limit
+        visited.add(current_node)
+        
+        variables = {
+            "isMediaset": True,
+            "renderLocation": "comet_media_viewer",
+            "nodeID": current_node,
+            "mediasetToken": f"pcb.{post_id}",
+            "scale": 2,
+            "feedLocation": "COMET_MEDIA_VIEWER",
+            "feedbackSource": 65,
+            "focusCommentID": None,
+            "privacySelectorRenderLocation": "COMET_MEDIA_VIEWER",
+            "useDefaultActor": False,
+            "shouldShowComments": True
+        }
+        
+        payload = {
+            "av": "0",
+            "__user": "0",
+            "__a": "1",
+            "doc_id": DOC_ID_PHOTO,
+            "variables": json.dumps(variables)
+        }
+        
+        try:
+            r = requests.post(GRAPHQL_URL, headers=HEADERS_PHOTO, data=payload, proxies=PROXIES, timeout=30)
+            if r.status_code != 200:
+                break
+            
+            # Parse response
+            cleaned_blocks = parse_fb_response(r.text)
+            if not cleaned_blocks:
+                break
+            
+            # Extract current image URL
+            image_url = None
+            for block in cleaned_blocks:
+                if "currMedia" in block:
+                    image_url = block["currMedia"].get("image", {}).get("uri")
+                    break
+            
+            if image_url:
+                saved_filename = download_image(image_url, post_id, image_index, save_dir)
+                if saved_filename:
+                    remaining_photos.append({
+                        'id': current_node,
+                        'url': image_url,
+                        'saved_as': saved_filename
+                    })
+                    image_index += 1
+            
+            # Extract next node
+            next_node = None
+            for block in cleaned_blocks:
+                if "nextMediaAfterNodeId" in block and block["nextMediaAfterNodeId"]:
+                    node_id = block["nextMediaAfterNodeId"].get("id")
+                    if node_id:
+                        next_node = node_id
+                        break
+            
+            if next_node:
+                current_node = next_node
+                time.sleep(0.5)  # Small delay between requests
+            else:
+                break  # No more images
+                
+        except Exception as e:
+            print(f"  ⚠️ Error fetching next image: {e}")
+            break
+    
+    if remaining_photos:
+        print(f"  ✅ Fetched {len(remaining_photos)} additional images")
+    
+    return remaining_photos
 
 
 def extract_data_blocks(raw_text):
@@ -145,6 +273,67 @@ def parse_fb_response(text):
     return cleaned
 
 
+def extract_comment_count(node):
+    """Extract comment count from post node"""
+    try:
+        # Path 1: feedback.comment_rendering_instance.comments.total_count
+        comment_count = node.get("feedback", {}).get("comment_rendering_instance", {}).get("comments", {}).get("total_count")
+        if comment_count is not None:
+            return comment_count
+        
+        # Path 2: comet_sections.feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context.comment_rendering_instance.comments.total_count
+        comet_sections = node.get("comet_sections", {})
+        feedback_section = comet_sections.get("feedback", {})
+        story = feedback_section.get("story", {})
+        story_ufi_container = story.get("story_ufi_container", {})
+        ufi_story = story_ufi_container.get("story", {})
+        feedback_context = ufi_story.get("feedback_context", {})
+        feedback_target = feedback_context.get("feedback_target_with_context", {})
+        comment_count = feedback_target.get("comment_rendering_instance", {}).get("comments", {}).get("total_count")
+        if comment_count is not None:
+            return comment_count
+        
+        # Path 3: comet_sections.feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context.comet_ufi_summary_and_actions_renderer.feedback.comment_rendering_instance.comments.total_count
+        comet_ufi = feedback_target.get("comet_ufi_summary_and_actions_renderer", {}).get("feedback", {})
+        comment_count = comet_ufi.get("comment_rendering_instance", {}).get("comments", {}).get("total_count")
+        if comment_count is not None:
+            return comment_count
+        
+        # Path 4: comet_sections.feedback.story.feedback_context.feedback_target_with_context.comment_rendering_instance.comments.total_count (old structure)
+        comet_sections = node.get("comet_sections", {})
+        feedback_section = comet_sections.get("feedback", {})
+        story = feedback_section.get("story", {})
+        feedback_context = story.get("feedback_context", {})
+        feedback_target = feedback_context.get("feedback_target_with_context", {})
+        comment_count = feedback_target.get("comment_rendering_instance", {}).get("comments", {}).get("total_count")
+        if comment_count is not None:
+            return comment_count
+        
+        # Path 5: feedback.comments_count_summary_renderer.feedback.comment_rendering_instance.comments.total_count
+        comments_renderer = node.get("feedback", {}).get("comments_count_summary_renderer", {}).get("feedback", {})
+        comment_count = comments_renderer.get("comment_rendering_instance", {}).get("comments", {}).get("total_count")
+        if comment_count is not None:
+            return comment_count
+        
+        # Path 6: comet_sections.feedback.story.story_ufi_container.story.feedback_context.feedback_target_with_context.comet_ufi_summary_and_actions_renderer.feedback.comments_count_summary_renderer.feedback.comment_rendering_instance.comments.total_count
+        comet_sections = node.get("comet_sections", {})
+        feedback_section = comet_sections.get("feedback", {})
+        story = feedback_section.get("story", {})
+        story_ufi_container = story.get("story_ufi_container", {})
+        ufi_story = story_ufi_container.get("story", {})
+        feedback_context = ufi_story.get("feedback_context", {})
+        feedback_target = feedback_context.get("feedback_target_with_context", {})
+        comet_ufi = feedback_target.get("comet_ufi_summary_and_actions_renderer", {}).get("feedback", {})
+        comments_count_renderer = comet_ufi.get("comments_count_summary_renderer", {}).get("feedback", {})
+        comment_count = comments_count_renderer.get("comment_rendering_instance", {}).get("comments", {}).get("total_count")
+        if comment_count is not None:
+            return comment_count
+            
+        return 0
+    except Exception:
+        return 0
+
+
 def is_reel_or_video_post(node):
     """Check if the post is a reel or video post"""
     if not node or node.get('__typename') != 'Story':
@@ -191,7 +380,7 @@ def is_reel_or_video_post(node):
     return False
 
 
-def extract_media(node, post_id):
+def extract_media(node, post_id, save_dir="group_post"):
     """Extract photo and video URLs from a post"""
     media = {
         'photos': [],
@@ -200,6 +389,7 @@ def extract_media(node, post_id):
     
     # Track image index for this post
     image_index = 0
+    last_media_id = None
     
     attachments = node.get('attachments', [])
     
@@ -210,10 +400,12 @@ def extract_media(node, post_id):
             photo_data = attachment.get('styles', {}).get('attachment', {}).get('media', {})
             if 'photo_image' in photo_data:
                 image_index += 1
+                media_id = attachment['media'].get('id')
+                last_media_id = media_id  # Track the last media ID
                 image_url = photo_data['photo_image'].get('uri')
-                saved_filename = download_image(image_url, post_id, image_index)
+                saved_filename = download_image(image_url, post_id, image_index, save_dir)
                 media['photos'].append({
-                    'id': attachment['media'].get('id'),
+                    'id': media_id,
                     'url': image_url,
                     'width': photo_data['photo_image'].get('width'),
                     'height': photo_data['photo_image'].get('height'),
@@ -226,11 +418,13 @@ def extract_media(node, post_id):
                 if 'media' in subattachment and subattachment['media'].get('__typename') == 'Photo':
                     image_index += 1
                     photo_data = subattachment.get('media', {})
+                    media_id = photo_data.get('id')
+                    last_media_id = media_id  # Track the last media ID
                     if 'image' in photo_data:
                         image_url = photo_data['image'].get('uri')
-                        saved_filename = download_image(image_url, post_id, image_index)
+                        saved_filename = download_image(image_url, post_id, image_index, save_dir)
                         media['photos'].append({
-                            'id': photo_data.get('id'),
+                            'id': media_id,
                             'url': image_url,
                             'width': photo_data['image'].get('width'),
                             'height': photo_data['image'].get('height'),
@@ -246,10 +440,24 @@ def extract_media(node, post_id):
                 'thumbnail': video_data.get('preferred_thumbnail', {}).get('image', {}).get('uri')
             })
     
+    # Fetch remaining images if we have exactly 5 photos (indicating there may be more)
+    if image_index == 5 and last_media_id:
+        remaining_photos = fetch_remaining_images(last_media_id, post_id, image_index, save_dir)
+        media['photos'].extend(remaining_photos)
+    
     return media
 
 
-def extract_post_data(node):
+def post_already_exists(post_id, base_folder, name_folder):
+    """Check if a post has already been scraped by checking if its JSON file exists"""
+    if not post_id or not name_folder:
+        return False
+    
+    post_file = os.path.join(base_folder, name_folder, str(post_id), f"{post_id}.json")
+    return os.path.exists(post_file)
+
+
+def extract_post_data(node, group_name=None):
     """Extract relevant data from a post node"""
     if not node or node.get('__typename') != 'Story':
         return None
@@ -267,34 +475,69 @@ def extract_post_data(node):
     if not post_id:
         return None
     
+    # Extract comment count
+    comment_count = extract_comment_count(node)
+    
+    # Extract group name if not provided
+    if not group_name:
+        group_name = extract_group_name(node)
+    
+    # Sanitize group name folder
+    if group_name:
+        name_folder = "".join(c for c in group_name if c.isalnum() or c in (' ', '-', '_')).strip()
+        if not name_folder:
+            name_folder = "Unknown"
+    else:
+        name_folder = "Unknown"
+    
+    # Prepare save directory for media
+    media_save_dir = os.path.join("group_post", name_folder)
+    
     post_data = {
         'id': node.get('id'),
         'post_id': post_id,
         'message': message,
+        'comment_count': comment_count,
+        'group_name': group_name,
         'permalink': node.get('permalink_url', ''),
-        'photos': extract_media(node, post_id)['photos'],
-        'videos': extract_media(node, post_id)['videos']
+        'photos': extract_media(node, post_id, media_save_dir)['photos'],
+        'videos': extract_media(node, post_id, media_save_dir)['videos']
     }
     
-    # Save individual post to its own folder as {post_id}.json
-    post_dir = os.path.join("group_post", str(post_id))
+    # Save individual post to folder structure: group_post/{group_name}/{post_id}/{post_id}.json
+    post_dir = os.path.join("group_post", name_folder, str(post_id))
     os.makedirs(post_dir, exist_ok=True)
     
     post_file = os.path.join(post_dir, f"{post_id}.json")
-    with open(post_file, "w", encoding="utf-8") as f:
-        json.dump(post_data, f, ensure_ascii=False, indent=2)
-    print(f"✓ Saved to {post_file}")
+    # with open(post_file, "w", encoding="utf-8") as f:
+    #     json.dump(post_data, f, ensure_ascii=False, indent=2)
+    # print(f"✓ Saved to {post_file}")
     
     return post_data
 
 
-def fetch_posts(limit=10):
-    """Fetch posts from Facebook group"""
-    posts = []
+def fetch_posts(limit=10, min_comments=0, batch_size=10, on_batch_complete=None):
+    """Fetch posts from Facebook group
+    
+    Args:
+        limit: Maximum number of posts to fetch
+        min_comments: Minimum number of comments required for a post to be included (0 = no filter)
+        batch_size: Number of posts to fetch before calling on_batch_complete callback
+        on_batch_complete: Optional callback function(batch_posts, total_so_far, limit) called after each batch
+    """
+    global GROUP_NAME
+    all_posts = []
+    batch_posts = []
     cursor = None
     page_num = 1
     
-    while len(posts) < limit:
+    if min_comments > 0:
+        print(f"📊 Filtering posts with at least {min_comments} comments")
+    
+    if batch_size > 0 and batch_size < limit:
+        print(f"📦 Processing in batches of {batch_size} posts")
+    
+    while len(all_posts) < limit:
         print(f"\nFetching page {page_num}...")
         
         variables = {
@@ -322,24 +565,41 @@ def fetch_posts(limit=10):
             "variables": json.dumps(variables),
         }
         
-        try:
-            r = retry_request(GRAPHQL_URL, HEADERS, payload, PROXIES)
-            r.raise_for_status()
-        except requests.RequestException as e:
-            print(f"Request failed: {e}")
-            break
+        # Retry loop for empty response handling
+        max_empty_retries = 3
+        empty_retry_count = 0
+        data = []
         
-        # Parse the response
-        data = parse_fb_response(r.text)
+        while empty_retry_count < max_empty_retries:
+            try:
+                r = retry_request(GRAPHQL_URL, HEADERS, payload, PROXIES)
+                r.raise_for_status()
+            except requests.RequestException as e:
+                print(f"Request failed: {e}")
+                break
+            
+            # Parse the response
+            data = parse_fb_response(r.text)
+            
+            if data and len(data) > 0:
+                # Got valid data, break retry loop
+                break
+            else:
+                empty_retry_count += 1
+                if empty_retry_count < max_empty_retries:
+                    print(f"  ⚠️ Empty response, retrying ({empty_retry_count}/{max_empty_retries})...")
+                    time.sleep(2)  # Wait before retry
+                else:
+                    print(f"  ❌ Empty response after {max_empty_retries} attempts, skipping page")
         
-        if not data:
-            print("No data received")
+        if not data or len(data) == 0:
+            print("❌ No data received after retries, stopping pagination")
             break
         
         # Save raw response for debugging
-        # with open(f"group_raw_page_{page_num}.json", "w", encoding="utf-8") as f:
-        #     json.dump(data, f, ensure_ascii=False, indent=2)
-        # print(f"Saved group_raw_page_{page_num}.json")
+        with open(f"group_raw_page_{page_num}.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"Saved group_raw_page_{page_num}.json")
         
         # Extract posts from the response array
         posts_found = 0
@@ -349,24 +609,74 @@ def fetch_posts(limit=10):
             if not isinstance(item, dict):
                 continue
             
-            # Check if this item has a 'node' with a Story
-            if 'node' in item and item['node'].get('__typename') == 'Story':
+            node = item.get('node', {})
+            node_typename = node.get('__typename')
+            
+            # Collect Story nodes from multiple sources
+            story_nodes = []
+            
+            # Direct Story node
+            if node_typename == 'Story':
+                story_nodes.append(node)
+            
+            # Story nodes inside Group edges
+            elif node_typename == 'Group':
+                edges = node.get('group_feed', {}).get('edges', [])
+                for edge in edges:
+                    edge_node = edge.get('node', {})
+                    if edge_node.get('__typename') == 'Story':
+                        story_nodes.append(edge_node)
+            
+            # Process all found Story nodes
+            for story_node in story_nodes:
                 # Skip reels and video posts
-                if is_reel_or_video_post(item['node']):
+                if is_reel_or_video_post(story_node):
                     print(f"  ⏭️  Skipping reel/video post")
                     continue
                 
-                post_data = extract_post_data(item['node'])
+                # Check comment count threshold
+                comment_count = extract_comment_count(story_node)
+                if min_comments > 0 and comment_count < min_comments:
+                    print(f"  ⏭️  Skipping post with only {comment_count} comments (need {min_comments}+)")
+                    continue
+                
+                # Extract group name from first post if not set
+                if not GROUP_NAME:
+                    GROUP_NAME = extract_group_name(story_node)
+                    if GROUP_NAME:
+                        print(f"📂 Group name: {GROUP_NAME}")
+                
+                # Check if post already exists
+                temp_post_id = story_node.get('post_id')
+                temp_group_name = GROUP_NAME or extract_group_name(story_node)
+                if temp_group_name:
+                    temp_name_folder = "".join(c for c in temp_group_name if c.isalnum() or c in (' ', '-', '_')).strip() or "Unknown"
+                    if post_already_exists(temp_post_id, "group_post", temp_name_folder):
+                        print(f"  ⏭️  Skipping already scraped post: {temp_post_id}")
+                        continue
+                
+                post_data = extract_post_data(story_node, GROUP_NAME)
                 if post_data:
-                    posts.append(post_data)
+                    batch_posts.append(post_data)
+                    all_posts.append(post_data)
                     posts_found += 1
                     print(f"  - Found post: {post_data['post_id']}")
                     
-                    if len(posts) >= limit:
+                    # Check if we should process this batch
+                    if batch_size > 0 and len(batch_posts) >= batch_size and on_batch_complete:
+                        print(f"\n📦 Batch complete: {len(batch_posts)} posts. Total: {len(all_posts)}/{limit}")
+                        on_batch_complete(batch_posts, len(all_posts), limit)
+                        batch_posts = []  # Reset batch
+                    
+                    if len(all_posts) >= limit:
                         break
             
+            # Break outer loop if limit reached
+            if len(all_posts) >= limit:
+                break
+            
             # Look for pagination info
-            elif 'page_info' in item:
+            if 'page_info' in item:
                 page_info = item['page_info']
                 if page_info.get('has_next_page'):
                     next_cursor = page_info.get('end_cursor')
@@ -374,7 +684,7 @@ def fetch_posts(limit=10):
         print(f"Found {posts_found} posts on this page")
         
         # Check if we should continue
-        if not next_cursor or len(posts) >= limit:
+        if not next_cursor or len(all_posts) >= limit:
             print("No more pages or reached limit. Stopping.")
             break
         
@@ -382,7 +692,12 @@ def fetch_posts(limit=10):
         page_num += 1
         time.sleep(2)  # Be nice to the server
     
-    return posts
+    # Process any remaining posts in the final batch
+    if batch_posts and on_batch_complete:
+        print(f"\n📦 Final batch: {len(batch_posts)} posts. Total: {len(all_posts)}/{limit}")
+        on_batch_complete(batch_posts, len(all_posts), limit)
+    
+    return all_posts
 
 
 if __name__ == "__main__":

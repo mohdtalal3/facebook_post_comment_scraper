@@ -129,8 +129,19 @@ def fetch_comments_for_post(post_id):
 
 def save_post_data(post_type, post_id, post_data, comments_data):
     """Save post and comments data in organized folder structure"""
-    # Create folder structure: [post_type]/[post_id]/
-    folder_path = os.path.join(post_type, post_id)
+    # Extract page/group name from post_data
+    name = post_data.get('page_name') or post_data.get('group_name')
+    
+    # Sanitize folder name
+    if name:
+        name_folder = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()
+        if not name_folder:
+            name_folder = "Unknown"
+    else:
+        name_folder = "Unknown"
+    
+    # Create folder structure: [post_type]/[page_name or group_name]/[post_id]/
+    folder_path = os.path.join(post_type, name_folder, post_id)
     os.makedirs(folder_path, exist_ok=True)
     
     # Combine post and comments in single file
