@@ -86,16 +86,24 @@ def comments_payload(feedback_id, cursor=None, cookies=None):
         "__user": user_id,
         "__a": "1",
         "fb_dtsg": FB_DTSG if FB_DTSG else "",
-        "doc_id": "25550760954572974",
+        "fb_api_caller_class": "RelayModern",
+        "server_timestamps": "true",
+        "doc_id": "27806180149070312",
         "variables": json.dumps({
             "commentsAfterCount": -1,
             "commentsAfterCursor": cursor,
-            "commentsIntentToken": "REVERSE_CHRONOLOGICAL_UNFILTERED_INTENT_V1",
-            "feedLocation": "DEDICATED_COMMENTING_SURFACE",
+            "commentsBeforeCount": None,
+            "commentsBeforeCursor": None,
+            "commentsIntentToken": None,
+            "feedLocation": "POST_PERMALINK_DIALOG",
             "focusCommentID": None,
             "scale": 2,
             "useDefaultActor": False,
-            "id": feedback_id
+            "id": feedback_id,
+            "__relay_internal__pv__CometUFICommentAutoTranslationTyperelayprovider": "AUTO_TRANSLATE",
+            "__relay_internal__pv__CometUFICommentAvatarStickerAnimatedImagerelayprovider": False,
+            "__relay_internal__pv__CometUFICommentActionLinksRewriteEnabledrelayprovider": True,
+            "__relay_internal__pv__IsWorkUserrelayprovider": False
         })
     }
 
@@ -111,6 +119,8 @@ def replies_payload(comment_feedback_id, expansion_token, cookies=None):
         "__user": user_id,
         "__a": "1",
         "fb_dtsg": FB_DTSG if FB_DTSG else "",
+        "fb_api_caller_class": "RelayModern",
+        "server_timestamps": "true",
         "doc_id": "26570577339199586",
         "variables": json.dumps({
             "clientKey": None,
@@ -119,7 +129,11 @@ def replies_payload(comment_feedback_id, expansion_token, cookies=None):
             "focusCommentID": None,
             "scale": 2,
             "useDefaultActor": False,
-            "id": comment_feedback_id
+            "id": comment_feedback_id,
+            "__relay_internal__pv__CometUFICommentAutoTranslationTyperelayprovider": "AUTO_TRANSLATE",
+            "__relay_internal__pv__CometUFICommentAvatarStickerAnimatedImagerelayprovider": False,
+            "__relay_internal__pv__CometUFICommentActionLinksRewriteEnabledrelayprovider": True,
+            "__relay_internal__pv__IsWorkUserrelayprovider": False
         })
     }
 
