@@ -126,6 +126,38 @@ Install with:
 pip install -r requirements.txt
 ```
 
+## 🐳 Running via Docker (Recommended / Easiest Setup)
+
+If you prefer to run the application inside a Docker container (which packages Python, PyQt6, Google Chrome, and all required system libraries for you), you can run it using Docker Compose.
+
+This setup uses **noVNC** to stream the PyQt6 graphical interface directly to your web browser. This is extremely helpful for completing the **automated Facebook login & 2FA steps** inside the container.
+
+### 1. Start the Container (GUI Mode - Default)
+
+Run the following command in the project root directory:
+```bash
+docker-compose up --build
+```
+
+### 2. Access the GUI
+
+Open your web browser on your host machine and navigate to:
+```
+http://localhost:8080/vnc.html
+```
+Click the **Connect** button (no password required) to access the PyQt6 desktop interface.
+
+### 3. Run in CLI Mode (Alternative)
+
+If you wish to use the interactive command-line interface menu inside the container:
+```bash
+docker-compose run --rm -e RUN_MODE=CLI scraper
+```
+
+### 4. Persistence of Data & Login Sessions
+- **Scraped Data**: Output JSON files and downloaded images are saved inside local folders (`simple_post/`, `page_post/`, `group_post/`) on your host machine.
+- **Login Session**: Your Chrome profile is persisted inside the local `chromedata1/` folder. This stores your Facebook cookies and 2FA authentication state so you don't need to re-login every time you run the container.
+
 ## 📖 Usage
 
 ### GUI Mode (Recommended)

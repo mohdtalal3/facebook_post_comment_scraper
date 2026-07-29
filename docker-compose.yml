@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  scraper:
+    build: .
+    container_name: facebook_scraper
+    ports:
+      - "8080:8080"
+    environment:
+      - RUN_MODE=${RUN_MODE:-GUI}
+      - RESOLUTION=1280x800x24
+    volumes:
+      # Mount output folders to persist scraped data on Windows host
+      - ./simple_post:/app/simple_post
+      - ./page_post:/app/page_post
+      - ./group_post:/app/group_post
+      # Mount Chrome profile to persist logged in cookies & login state
+      - ./chromedata1:/app/chromedata1
+      # Mount .env config
+      - ./.env:/app/.env
+    restart: unless-stopped

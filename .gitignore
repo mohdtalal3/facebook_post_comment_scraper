@@ -1,0 +1,24 @@
+# Scraper output data (locally scraped comments/images)
+simple_post/
+page_post/
+group_post/
+
+# Chrome User Data (Contains sensitive Facebook login credentials and session cookies!)
+chromedata1/
+
+# Configuration & environment files
+.env
+
+# Python cache & build files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# macOS system files
+.DS_Store

@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.git
+.DS_Store
+simple_post/
+page_post/
+group_post/
+chromedata1/
+.env
