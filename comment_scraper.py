@@ -201,7 +201,11 @@ def fetch_comments(feedback_id, cookies=None):
 
             # Extract parent_post_story info from first response
             if response_count == 1 and post_info is None:
-                parent_post_story = n.get("parent_post_story", {})
+                parent_post_story = (
+                    n.get("comet_comment_author_name_and_badges_renderer", {})
+                      .get("comment", {})
+                      .get("parent_post_story", {})
+                ) or n.get("parent_post_story", {})
                 
                 if parent_post_story:
                     post_info = {
