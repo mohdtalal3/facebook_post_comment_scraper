@@ -13,7 +13,7 @@ GRAPHQL_URL = "https://www.facebook.com/api/graphql/"
 # ========= CONFIG (FILL THESE) =========
 USER_ID = "100019577483175"   # profile / page id
 PAGE_NAME = None  # Will be extracted automatically
-DOC_ID = "25430544756617998" # ProfileCometTimelineFeedRefetchQuery
+DOC_ID = "28591463417151325" # ProfileCometTimelineFeedRefetchQuery
 
 # ========= RETRY HELPER =========
 def retry_request(url, headers, data, proxies, max_retries=5):
@@ -268,10 +268,14 @@ def parse_fb_response(text):
 
 
 BASE_HEADERS = {
-    "user-agent": "Mozilla/5.0",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
     "content-type": "application/x-www-form-urlencoded",
     "origin": "https://www.facebook.com",
-    "referer": f"https://www.facebook.com/profile.php?id={USER_ID}",
+    "referer": f"https://www.facebook.com/DonielleDeoundrasKitchen?checkpoint_src=any",
+    "x-fb-friendly-name": "ProfileCometTimelineFeedRefetchQuery",
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
 }
 
 # Get proxy configuration
@@ -511,20 +515,65 @@ def fetch_posts(limit=10, min_comments=0, batch_size=10, on_batch_complete=None)
 
     while len(all_posts) < limit:
         variables = {
+            "afterTime": None,
+            "beforeTime": None,
             "count": 3,
             "cursor": cursor,
-            "id": USER_ID,
             "feedLocation": "TIMELINE",
+            # "feedbackSource": 0,
+            # "focusCommentID": None,
+            # "memorializedSplitTimeFilter": None,
+            # "omitPinnedPost": True,
+            # "postedBy": {"group": "OWNER"},
+            # "privacy": None,
+            # "privacySelectorRenderLocation": "COMET_STREAM",
+            # "referringStoryRenderLocation": None,
             "renderLocation": "timeline",
             "scale": 2,
-            "useDefaultActor": False
+            # "stream_count": 1,
+            # "taggedInOnly": None,
+            # "trackingCode": None,
+            # "useDefaultActor": False,
+            "id": USER_ID,
+            "__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider": True,
+            "__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider": True,
+            "__relay_internal__pv__CometFeedStory_enable_reactor_facepilerelayprovider": False,
+            "__relay_internal__pv__CometFeedStory_enable_social_bubblesrelayprovider": False,
+            "__relay_internal__pv__CometFeedStory_enable_post_permalink_white_space_clickrelayprovider": False,
+            "__relay_internal__pv__CometUFICommentActionLinksRewriteEnabledrelayprovider": True,
+            "__relay_internal__pv__CometUFICommentAvatarStickerAnimatedImagerelayprovider": False,
+            "__relay_internal__pv__IsWorkUserrelayprovider": False,
+            "__relay_internal__pv__TestPilotShouldIncludeDemoAdUseCaserelayprovider": False,
+            "__relay_internal__pv__FBReels_deprecate_short_form_video_context_gkrelayprovider": True,
+            "__relay_internal__pv__FBReels_enable_view_dubbed_audio_type_gkrelayprovider": True,
+            "__relay_internal__pv__CometFeedShareMedia_shouldPrefetchShareImagerelayprovider": False,
+            "__relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider": False,
+            "__relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider": False,
+            "__relay_internal__pv__IsMergQAPollsrelayprovider": False,
+            "__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider": True,
+            "__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider": False,
+            "__relay_internal__pv__CometUFICommentAutoTranslationTyperelayprovider": "AUTO_TRANSLATE",
+            "__relay_internal__pv__CometUFIShareActionMigrationrelayprovider": True,
+            "__relay_internal__pv__CometUFISingleLineUFIrelayprovider": True,
+            "__relay_internal__pv__relay_provider_comet_ufi_ssr_seo_deferrelayprovider": True,
+            "__relay_internal__pv__CometUFI_dedicated_comment_routable_dialog_gkrelayprovider": True,
+            "__relay_internal__pv__ReelsIFUCard_reelsIFULikeCountrelayprovider": False,
+            "__relay_internal__pv__FBReelsIFUTileContent_reelsIFUPlayOnHoverrelayprovider": True,
+            "__relay_internal__pv__StoriesShouldEnablePhotosensitiveContentWarningrelayprovider": False,
+            "__relay_internal__pv__ShouldEnableBakedInTextStoriesrelayprovider": False,
+            "__relay_internal__pv__StoriesShouldIncludeFbNotesrelayprovider": True,
         }
 
         payload = {
-        "av": COOKIES.get("c_user", "0"),
-        "__user": COOKIES.get("c_user", "0"),
-        "__a": "1",
-        "fb_dtsg": FB_DTSG if FB_DTSG else "",
+            "av": COOKIES.get("c_user", "0"),
+            "__aaid": "0",
+            "__user": COOKIES.get("c_user", "0"),
+            "__a": "1",
+            "__comet_req": "15",
+            "fb_api_caller_class": "RelayModern",
+            "fb_api_req_friendly_name": "ProfileCometTimelineFeedRefetchQuery",
+            "server_timestamps": "true",
+            "fb_dtsg": FB_DTSG if FB_DTSG else "",
             "doc_id": DOC_ID,
             "variables": json.dumps(variables),
         }
@@ -553,9 +602,9 @@ def fetch_posts(limit=10, min_comments=0, batch_size=10, on_batch_complete=None)
                     print(f"  ❌ Empty response after {max_empty_retries} attempts, skipping page")
         
         # # Save cleaned data for verification
-        # with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
-        #     json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
-        # print(f"Saved cleaned_page_{page_num}.json")
+        with open(f"cleaned_page_{page_num}.json", "w", encoding="utf-8") as f:
+            json.dump(cleaned_data, f, ensure_ascii=False, indent=2)
+        print(f"Saved cleaned_page_{page_num}.json")
         
         # If still empty after retries, stop pagination (can't get next cursor from empty response)
         if not cleaned_data or len(cleaned_data) == 0:
