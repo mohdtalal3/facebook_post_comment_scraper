@@ -11,7 +11,7 @@ def _init_session(cookies, fb_dtsg):
     apply_proxy(bool(config.COOKIES), log=log)
 
 
-def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, should_stop=None):
+def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, should_stop=None, job_id=None):
     """Scrape one or more single posts. Returns list of scraped post IDs."""
     _init_session(cookies, fb_dtsg)
 
@@ -32,7 +32,7 @@ def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, shou
 
 def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                    download_images=True, should_stop=None,
-                   start_date=None, end_date=None, fetch_comments=True):
+                   start_date=None, end_date=None, fetch_comments=True, job_id=None):
     """Scrape posts + comments from one or more pages."""
     _init_session(cookies, fb_dtsg)
 
@@ -59,15 +59,15 @@ def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                     continue
                 log(f"  Processing post {post_id}...")
                 if not fetch_comments:
-                    save_post_data("page_post", post_id, post, [])
+                    save_post_data("page_post", post_id, post, [], job_id=job_id)
                     total_scraped += 1
                     continue
                 try:
                     comments, _ = fetch_comments_for_post(post_id, should_stop=should_stop)
-                    save_post_data("page_post", post_id, post, comments)
+                    save_post_data("page_post", post_id, post, comments, job_id=job_id)
                 except Exception as e:
                     log(f"  Error fetching comments: {e} — saving post without comments")
-                    save_post_data("page_post", post_id, post, [])
+                    save_post_data("page_post", post_id, post, [], job_id=job_id)
                 total_scraped += 1
                 import time
                 time.sleep(1)
@@ -83,7 +83,7 @@ def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
 
 def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                     download_images=True, should_stop=None,
-                    start_date=None, end_date=None, fetch_comments=True):
+                    start_date=None, end_date=None, fetch_comments=True, job_id=None):
     """Scrape posts + comments from one or more groups."""
     _init_session(cookies, fb_dtsg)
 
@@ -110,15 +110,15 @@ def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                     continue
                 log(f"  Processing post {post_id}...")
                 if not fetch_comments:
-                    save_post_data("group_post", post_id, post, [])
+                    save_post_data("group_post", post_id, post, [], job_id=job_id)
                     total_scraped += 1
                     continue
                 try:
                     comments, _ = fetch_comments_for_post(post_id, should_stop=should_stop)
-                    save_post_data("group_post", post_id, post, comments)
+                    save_post_data("group_post", post_id, post, comments, job_id=job_id)
                 except Exception as e:
                     log(f"  Error fetching comments: {e} — saving post without comments")
-                    save_post_data("group_post", post_id, post, [])
+                    save_post_data("group_post", post_id, post, [], job_id=job_id)
                 total_scraped += 1
                 import time
                 time.sleep(1)

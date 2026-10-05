@@ -9,6 +9,7 @@ import threading
 import time
 import uuid
 
+from scraper import storage
 from scraper import tasks
 from scraper.logging_utils import set_sink, clear_sink
 
@@ -60,10 +61,13 @@ class ScrapeJob:
         if not runner:
             raise ValueError(f"Unknown scrape type: {self.type}")
 
+        # Tag every post saved by this job with the job id
+        params = {**self.params, "job_id": self.id}
+
         def worker():
             set_sink(self._sink)
             try:
-                self.result = runner(**self.params, should_stop=self.stop_event.is_set)
+                self.result = runner(**params, should_stop=self.stop_event.is_set)
                 self.status = "stopped" if self.stop_event.is_set() else "done"
             except Exception as e:
                 self.error = str(e)
@@ -71,6 +75,10 @@ class ScrapeJob:
                 self._sink(f"JOB FAILED: {e}")
             finally:
                 self.finished_at = time.time()
+                storage.update_job_record(self.id,
+                                          status=self.status,
+                                          finished_at=self.finished_at,
+                                          error=self.error)
                 clear_sink()
 
         self._thread = threading.Thread(target=worker, daemon=True)
@@ -103,6 +111,18 @@ class JobManager:
             if self.current and self.current.status == "running":
                 raise RuntimeError("A scrape job is already running")
             job = ScrapeJob(job_type, params)
+
+            # Persist the job so posts can be filtered by it later
+            storage.save_job_record({
+                "id": job.id,
+                "type": job_type,
+                "params": params,
+                "status": "running",
+                "started_at": job.started_at,
+                "finished_at": None,
+                "error": None,
+            })
+
             job.start()
             self.current = job
             self.last = job

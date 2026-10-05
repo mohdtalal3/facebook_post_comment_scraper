@@ -15,7 +15,7 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
     btn.classList.add("active");
     $(`#view-${btn.dataset.view}`).classList.add("active");
-    if (btn.dataset.view === "posts") loadPosts();
+    if (btn.dataset.view === "posts") { loadJobs(); loadPosts(); }
     if (btn.dataset.view === "settings") loadSession();
   });
 });
@@ -137,12 +137,51 @@ $("#filterSource").addEventListener("change", loadPosts);
 $("#filterQuery").addEventListener("input", debounce(loadPosts, 300));
 $("#filterMinComments").addEventListener("input", debounce(loadPosts, 300));
 
+let activeJobId = "";
+
+async function loadJobs() {
+  const res = await fetch("/api/jobs");
+  const data = await res.json();
+  const row = $("#jobsRow");
+  row.innerHTML = "";
+
+  const all = document.createElement("button");
+  all.className = `job-chip ${!activeJobId ? "active" : ""}`;
+  all.textContent = "All posts";
+  all.addEventListener("click", () => { activeJobId = ""; loadJobs(); loadPosts(); });
+  row.appendChild(all);
+
+  data.jobs.forEach((j) => {
+    const chip = document.createElement("button");
+    chip.className = `job-chip ${activeJobId === j.id ? "active" : ""}`;
+    const typeLabel = { simple_post: "Single", page_posts: "Page", group_posts: "Group" }[j.type] || j.type;
+    const when = new Date(j.started_at * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    const firstUrl = (j.params.urls && j.params.urls[0]) || "";
+    chip.innerHTML = `<span class="job-type">${typeLabel}</span>` +
+      `<span class="job-url">${esc(shorten(firstUrl, 40))}</span>` +
+      `<span class="job-meta">${when} · ${j.post_count} posts · ${j.status}</span>`;
+    chip.title = j.params.urls.join("\n");
+    chip.addEventListener("click", () => {
+      activeJobId = activeJobId === j.id ? "" : j.id;
+      loadJobs();
+      loadPosts();
+    });
+    row.appendChild(chip);
+  });
+}
+
+function shorten(s, n) {
+  s = s.replace(/^https?:\/\/(www\.)?/, "");
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
 async function loadPosts() {
   const params = new URLSearchParams();
   if ($("#filterType").value) params.set("type", $("#filterType").value);
   if ($("#filterSource").value) params.set("source", $("#filterSource").value);
   if ($("#filterQuery").value) params.set("q", $("#filterQuery").value);
   if (parseInt($("#filterMinComments").value)) params.set("min_comments", $("#filterMinComments").value);
+  if (activeJobId) params.set("job_id", activeJobId);
 
   const res = await fetch(`/api/posts?${params}`);
   const data = await res.json();
@@ -188,6 +227,13 @@ function renderPostCard(p) {
     btn("View", "secondary", () => viewPost(p)),
     btn("JSON", "secondary", () => window.open(`/api/posts/download?type=${p.post_type}&source=${encodeURIComponent(p.source || "")}&id=${p.post_id}`)),
   );
+  const open = document.createElement("a");
+  open.className = "btn ghost small";
+  open.href = p.url || `https://www.facebook.com/${p.post_id}`;
+  open.target = "_blank";
+  open.rel = "noopener";
+  open.textContent = "Open ↗";
+  actions.append(open);
   if (p.image_count > 0) {
     actions.append(btn("Images", "secondary", () => window.open(`/api/posts/images?type=${p.post_type}&source=${encodeURIComponent(p.source || "")}&id=${p.post_id}`)));
   }
@@ -229,6 +275,10 @@ async function viewPost(p) {
     (post.reaction_count != null ? ` · Reactions: ${post.reaction_count}` : "") +
     (post.comment_count != null ? ` · Comment count: ${post.comment_count}` : "");
   body.appendChild(stats);
+
+  const link = document.createElement("p");
+  link.innerHTML = `<a href="${esc(post.permalink || `https://www.facebook.com/${p.post_id}`)}" target="_blank" rel="noopener">Open post on Facebook ↗</a>`;
+  body.appendChild(link);
 
   (post.media || []).forEach((m) => {
     if (m.type === "photo" && m.url) {

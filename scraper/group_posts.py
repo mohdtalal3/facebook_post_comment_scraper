@@ -154,7 +154,7 @@ def fetch_posts(group_url, limit=10, min_comments=0, download_images=True,
                     "reaction_count": extract_reaction_count(node),
                     "share_count": extract_share_count(node),
                     "group_name": group_name_state["name"],
-                    "permalink": node.get("permalink_url", ""),
+                    "permalink": node.get("permalink_url") or f"https://www.facebook.com/{post_id}",
                     "media": media,
                 }
 

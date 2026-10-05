@@ -15,6 +15,7 @@ from .logging_utils import log
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+JOBS_FILE = os.path.join(DATA_DIR, "jobs.json")
 
 POST_TYPES = ("simple_post", "page_post", "group_post")
 
@@ -35,15 +36,19 @@ def post_exists(post_type, name_folder, post_id):
     return os.path.exists(post_file(post_type, name_folder, post_id))
 
 
-def save_post_data(post_type, post_id, post_data, comments_data):
+def save_post_data(post_type, post_id, post_data, comments_data, job_id=None):
     """Save post + comments combined as {post_id}.json. Returns the file path."""
     name = post_data.get("page_name") or post_data.get("group_name")
     folder = post_dir(post_type, name, post_id)
     os.makedirs(folder, exist_ok=True)
 
+    record = {**post_data, "comments": comments_data}
+    if job_id:
+        record["job_id"] = job_id
+
     path = post_file(post_type, name, post_id)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({**post_data, "comments": comments_data}, f, ensure_ascii=False, indent=2)
+        json.dump(record, f, ensure_ascii=False, indent=2)
 
     log(f"  Saved to {os.path.relpath(path, PROJECT_ROOT)}")
     return path
@@ -108,7 +113,7 @@ def _iter_post_files():
                     yield post_type, source_name, post_id, json_path
 
 
-def list_posts(post_type=None, source=None, query=None, min_comments=0):
+def list_posts(post_type=None, source=None, query=None, min_comments=0, job_id=None):
     """List all scraped posts with metadata for the posts browser."""
     results = []
     for p_type, source_name, post_id, json_path in _iter_post_files():
@@ -121,6 +126,9 @@ def list_posts(post_type=None, source=None, query=None, min_comments=0):
             with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
+            continue
+
+        if job_id and data.get("job_id") != job_id:
             continue
 
         text = data.get("text") or ""
@@ -144,19 +152,74 @@ def list_posts(post_type=None, source=None, query=None, min_comments=0):
             "post_type": p_type,
             "source": None if p_type == "simple_post" else source_name,
             "post_id": post_id,
+            "job_id": data.get("job_id"),
             "text": text[:300],
             "comment_count": comment_count,
             "reaction_count": data.get("reaction_count"),
             "share_count": data.get("share_count"),
             "scraped_comments": len(comments),
             "image_count": len(images),
-            "permalink": data.get("permalink"),
+            "url": data.get("permalink") or f"https://www.facebook.com/{post_id}",
+            "created_at": data.get("created_at"),
             "saved_at": int(os.path.getmtime(json_path)),
             "file": os.path.relpath(json_path, PROJECT_ROOT),
         })
 
     results.sort(key=lambda p: p["saved_at"], reverse=True)
     return results
+
+
+# ---- scrape job history ------------------------------------------------
+
+def load_jobs():
+    if not os.path.exists(JOBS_FILE):
+        return []
+    try:
+        with open(JOBS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _write_jobs(jobs):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(JOBS_FILE, "w", encoding="utf-8") as f:
+        json.dump(jobs, f, ensure_ascii=False, indent=2)
+
+
+def save_job_record(record):
+    jobs = load_jobs()
+    jobs.append(record)
+    _write_jobs(jobs)
+
+
+def update_job_record(job_id, **fields):
+    jobs = load_jobs()
+    for job in jobs:
+        if job.get("id") == job_id:
+            job.update(fields)
+            _write_jobs(jobs)
+            return job
+    return None
+
+
+def list_jobs():
+    """Saved scrape jobs, newest first, each with its scraped post count."""
+    jobs = load_jobs()
+    counts = {}
+    for _, _, _, json_path in _iter_post_files():
+        try:
+            with open(json_path, encoding="utf-8") as f:
+                job_id = json.load(f).get("job_id")
+        except Exception:
+            continue
+        if job_id:
+            counts[job_id] = counts.get(job_id, 0) + 1
+
+    for job in jobs:
+        job["post_count"] = counts.get(job["id"], 0)
+    jobs.sort(key=lambda j: j.get("started_at", 0), reverse=True)
+    return jobs
 
 
 def list_sources():

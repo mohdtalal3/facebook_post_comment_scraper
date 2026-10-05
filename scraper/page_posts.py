@@ -196,6 +196,8 @@ def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
                 permalink = node["attachments"][0]["styles"]["attachment"]["url"]
             except Exception:
                 permalink = None
+            if not permalink:
+                permalink = f"https://www.facebook.com/{post_id}"
 
             media_dir = f"page_post/{name_folder}"
             post = {

@@ -238,6 +238,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 .tag.source { background: rgba(255,167,38,.15); color: var(--orange); }
 
+/* ---------- Jobs row ---------- */
+.jobs-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.job-chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer;
+  color: var(--text); font-size: 12px; text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.job-chip:hover { border-color: var(--accent); }
+.job-chip.active { border-color: var(--accent); background: rgba(79,124,255,.12); }
+.job-chip .job-type { font-weight: 700; font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .4px; }
+.job-chip .job-url { color: var(--text); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-chip .job-meta { color: var(--text-dim); font-size: 11px; }
+
 .empty-state { text-align: center; color: var(--text-dim); padding: 60px 0; }
 
 /* ---------- Modal ---------- */

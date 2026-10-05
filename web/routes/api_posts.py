@@ -13,6 +13,7 @@ def list_posts():
         source=request.args.get("source") or None,
         query=request.args.get("q") or None,
         min_comments=request.args.get("min_comments", 0, type=int),
+        job_id=request.args.get("job_id") or None,
     )
     return jsonify({"posts": posts, "sources": storage.list_sources()})
 

@@ -25,6 +25,7 @@ def scrape_single_post(post_url, download_images=True, should_stop=None):
     post_data = {
         "post_id": post_id,
         "type": "simple_post",
+        "permalink": f"https://www.facebook.com/{post_id}",
         "post_info": post_info,
     }
     if post_info:

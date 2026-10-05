@@ -20,4 +20,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print(f"\n  Facebook Scraper running →  http://{args.host}:{args.port}\n")
-    app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
+    #app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
+    app.run(host=args.host, port=args.port, debug=True, threaded=True)
