@@ -141,6 +141,14 @@ def _extract_post_info(node):
             info["media_id"] = media.get("id")
             break
 
+    from .extractors import extract_reaction_count, extract_share_count
+    reaction_count = extract_reaction_count(parent)
+    share_count = extract_share_count(parent)
+    if reaction_count:
+        info["reaction_count"] = reaction_count
+    if share_count:
+        info["share_count"] = share_count
+
     log(f"  Extracted post info: {info}")
     return info
 
