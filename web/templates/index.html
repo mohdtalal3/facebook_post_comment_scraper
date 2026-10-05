@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facebook Scraper</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-icon">FB</span>
+        <span class="logo-text">Scraper</span>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="scrape">
+          <span class="nav-icon">&#9889;</span> Scrape
+        </button>
+        <button class="nav-item" data-view="posts">
+          <span class="nav-icon">&#128193;</span> Posts
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon">&#9881;</span> Settings
+        </button>
+      </nav>
+      <div class="session-badge" id="sessionBadge">
+        <span class="dot"></span> <span id="sessionText">No session</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- ============ SCRAPE VIEW ============ -->
+      <section id="view-scrape" class="view active">
+        <header class="view-header">
+          <h1>Scrape</h1>
+          <p>Pick a mode, paste your URLs, and watch the logs live.</p>
+        </header>
+
+        <div class="card">
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="simple_post">Single Post</button>
+            <button class="mode-tab" data-mode="page_posts">Page Posts</button>
+            <button class="mode-tab" data-mode="group_posts">Group Posts</button>
+          </div>
+
+          <div class="field">
+            <label id="urlLabel">Post URLs <small>(one per line)</small></label>
+            <textarea id="urls" rows="5" placeholder="https://www.facebook.com/..."></textarea>
+          </div>
+
+          <div class="options-row" id="pageOptions" hidden>
+            <div class="field inline">
+              <label>Post limit</label>
+              <input type="number" id="limit" value="10" min="1" max="100000">
+            </div>
+            <div class="field inline">
+              <label>Min comments <small>(0 = all)</small></label>
+              <input type="number" id="minComments" value="0" min="0" max="100000">
+            </div>
+          </div>
+
+          <div class="options-row">
+            <label class="switch-field">
+              <input type="checkbox" id="downloadImages" checked>
+              <span class="switch"></span> Download images
+            </label>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="startBtn">Start scraping</button>
+            <button class="btn danger" id="stopBtn" hidden>Stop</button>
+          </div>
+        </div>
+
+        <div class="card log-card">
+          <div class="card-head">
+            <h2>Live logs</h2>
+            <div class="log-meta">
+              <span id="jobStatus" class="badge idle">idle</span>
+              <button class="btn ghost small" id="clearLogsBtn">Clear</button>
+            </div>
+          </div>
+          <div class="log-panel" id="logPanel"></div>
+        </div>
+      </section>
+
+      <!-- ============ POSTS VIEW ============ -->
+      <section id="view-posts" class="view">
+        <header class="view-header">
+          <h1>Scraped posts</h1>
+          <p>Browse, filter, view and download everything you've scraped.</p>
+        </header>
+
+        <div class="card">
+          <div class="filters">
+            <select id="filterType">
+              <option value="">All types</option>
+              <option value="simple_post">Single posts</option>
+              <option value="page_post">Page posts</option>
+              <option value="group_post">Group posts</option>
+            </select>
+            <select id="filterSource">
+              <option value="">All sources</option>
+            </select>
+            <input type="text" id="filterQuery" placeholder="Search text or post ID...">
+            <input type="number" id="filterMinComments" placeholder="Min comments" min="0" style="width:130px">
+            <button class="btn secondary" id="refreshPostsBtn">Refresh</button>
+          </div>
+        </div>
+
+        <div class="posts-grid" id="postsGrid"></div>
+        <div class="empty-state" id="postsEmpty" hidden>
+          <p>No posts found. Scrape something first!</p>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS VIEW ============ -->
+      <section id="view-settings" class="view">
+        <header class="view-header">
+          <h1>Settings</h1>
+          <p>Authentication is optional — public content works without it.</p>
+        </header>
+
+        <div class="card">
+          <h2>Session</h2>
+          <p class="muted" id="sessionDetail"></p>
+
+          <div class="field">
+            <label>Paste cookie string <small>(key1=value1; key2=value2; ...)</small></label>
+            <textarea id="cookieInput" rows="3" placeholder="datr=...; c_user=...; xs=..."></textarea>
+          </div>
+
+          <div class="field">
+            <label>...or paste a cURL command <small>(DevTools → Copy as cURL)</small></label>
+            <textarea id="curlInput" rows="4" placeholder="curl 'https://www.facebook.com/api/graphql/' -b '...' --data-raw 'fb_dtsg=...'"></textarea>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="saveSessionBtn">Save session</button>
+            <button class="btn secondary" id="chromeLoginBtn">Login with Chrome</button>
+            <button class="btn danger" id="clearSessionBtn">Clear session</button>
+          </div>
+          <p class="muted" id="chromeHint" hidden>Chrome opened — log in, then click "I've logged in".</p>
+          <button class="btn secondary" id="chromeFinishBtn" hidden>I've logged in</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Post detail modal -->
+  <div class="modal-backdrop" id="postModal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modalTitle">Post</h2>
+        <button class="btn ghost" id="modalCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
