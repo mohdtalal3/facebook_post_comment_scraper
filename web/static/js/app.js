@@ -15,7 +15,8 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
     btn.classList.add("active");
     $(`#view-${btn.dataset.view}`).classList.add("active");
-    if (btn.dataset.view === "posts") { loadJobs(); loadPosts(); }
+    if (btn.dataset.view === "jobs") renderJobsTable();
+    if (btn.dataset.view === "posts") loadPosts();
     if (btn.dataset.view === "settings") loadSession();
   });
 });
@@ -49,6 +50,7 @@ $("#startBtn").addEventListener("click", async () => {
     urls,
     download_images: $("#downloadImages").checked,
   };
+  if ($("#jobName").value.trim()) body.name = $("#jobName").value.trim();
   if (state.mode !== "simple_post") {
     body.limit = parseInt($("#limit").value) || 10;
     body.min_comments = parseInt($("#minComments").value) || 0;
@@ -130,50 +132,91 @@ function appendLog(message) {
   panel.scrollTop = panel.scrollHeight;
 }
 
+/* ---------------- Jobs view ---------------- */
+let activeJobId = "";
+let activeJobName = "";
+
+async function renderJobsTable() {
+  const res = await fetch("/api/jobs");
+  const data = await res.json();
+  const tbody = $("#jobsTableBody");
+  tbody.innerHTML = "";
+  $("#jobsEmpty").hidden = data.jobs.length > 0;
+
+  data.jobs.forEach((j) => {
+    const tr = document.createElement("tr");
+
+    const typeLabel = { simple_post: "Single", page_posts: "Page", group_posts: "Group" }[j.type] || j.type;
+    const sources = (j.params.urls || []).length;
+    const when = new Date(j.started_at * 1000).toLocaleString([], {
+      year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+
+    tr.innerHTML =
+      `<td class="cell-name">${esc(j.name || j.id)}</td>` +
+      `<td><span class="tag">${typeLabel}</span></td>` +
+      `<td><span class="badge ${j.status}">${j.status}</span></td>` +
+      `<td>${sources} source${sources === 1 ? "" : "s"}</td>` +
+      `<td>${j.params.min_comments ?? 0}</td>` +
+      `<td><strong>${j.post_count}</strong></td>` +
+      `<td class="cell-date">${when}</td>`;
+
+    const actions = document.createElement("td");
+    actions.className = "cell-actions";
+    actions.append(
+      btn("Logs", "secondary", () => showJobLogs(j)),
+      btn("Open", "primary", () => openJob(j)),
+    );
+    tr.appendChild(actions);
+    tbody.appendChild(tr);
+  });
+}
+
+function openJob(job) {
+  activeJobId = job.id;
+  activeJobName = job.name || job.id;
+  updateJobBanner();
+  document.querySelector('.nav-item[data-view="posts"]').click();
+}
+
+function updateJobBanner() {
+  const banner = $("#jobBanner");
+  banner.hidden = !activeJobId;
+  if (activeJobId) {
+    $("#jobBannerName").textContent = activeJobName;
+    $("#postsSubtitle").textContent = `Showing posts from job "${activeJobName}". Filters below apply within this job.`;
+  } else {
+    $("#postsSubtitle").textContent = "Browse, filter, view and download everything you've scraped.";
+  }
+}
+
+$("#clearJobBtn").addEventListener("click", () => {
+  activeJobId = "";
+  activeJobName = "";
+  updateJobBanner();
+  loadPosts();
+});
+
+async function showJobLogs(job) {
+  const res = await fetch(`/api/jobs/${job.id}/logs`);
+  if (!res.ok) return toast("Logs not found for this job", true);
+  const text = await res.text();
+  $("#logsModalTitle").textContent = `Logs — ${job.name || job.id}`;
+  $("#logsContent").textContent = text || "(no logs)";
+  $("#logsModal").hidden = false;
+}
+
+$("#logsCloseBtn").addEventListener("click", () => { $("#logsModal").hidden = true; });
+$("#logsModal").addEventListener("click", (e) => {
+  if (e.target === $("#logsModal")) $("#logsModal").hidden = true;
+});
+
 /* ---------------- Posts view ---------------- */
 $("#refreshPostsBtn").addEventListener("click", loadPosts);
 $("#filterType").addEventListener("change", loadPosts);
 $("#filterSource").addEventListener("change", loadPosts);
 $("#filterQuery").addEventListener("input", debounce(loadPosts, 300));
 $("#filterMinComments").addEventListener("input", debounce(loadPosts, 300));
-
-let activeJobId = "";
-
-async function loadJobs() {
-  const res = await fetch("/api/jobs");
-  const data = await res.json();
-  const row = $("#jobsRow");
-  row.innerHTML = "";
-
-  const all = document.createElement("button");
-  all.className = `job-chip ${!activeJobId ? "active" : ""}`;
-  all.textContent = "All posts";
-  all.addEventListener("click", () => { activeJobId = ""; loadJobs(); loadPosts(); });
-  row.appendChild(all);
-
-  data.jobs.forEach((j) => {
-    const chip = document.createElement("button");
-    chip.className = `job-chip ${activeJobId === j.id ? "active" : ""}`;
-    const typeLabel = { simple_post: "Single", page_posts: "Page", group_posts: "Group" }[j.type] || j.type;
-    const when = new Date(j.started_at * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    const firstUrl = (j.params.urls && j.params.urls[0]) || "";
-    chip.innerHTML = `<span class="job-type">${typeLabel}</span>` +
-      `<span class="job-url">${esc(shorten(firstUrl, 40))}</span>` +
-      `<span class="job-meta">${when} · ${j.post_count} posts · ${j.status}</span>`;
-    chip.title = j.params.urls.join("\n");
-    chip.addEventListener("click", () => {
-      activeJobId = activeJobId === j.id ? "" : j.id;
-      loadJobs();
-      loadPosts();
-    });
-    row.appendChild(chip);
-  });
-}
-
-function shorten(s, n) {
-  s = s.replace(/^https?:\/\/(www\.)?/, "");
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
 
 async function loadPosts() {
   const params = new URLSearchParams();

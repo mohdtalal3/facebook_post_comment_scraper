@@ -5,6 +5,7 @@ One scrape job runs at a time (same as the old PyQt version). Each job:
 - keeps an in-memory log buffer (retrievable by index for polling)
 - exposes a threading.Event for cooperative stopping
 """
+import os
 import threading
 import time
 import uuid
@@ -12,6 +13,8 @@ import uuid
 from scraper import storage
 from scraper import tasks
 from scraper.logging_utils import set_sink, clear_sink
+
+_TYPE_LABELS = {"simple_post": "Single posts", "page_posts": "Page posts", "group_posts": "Group posts"}
 
 
 class ScrapeJob:
@@ -75,6 +78,7 @@ class ScrapeJob:
                 self._sink(f"JOB FAILED: {e}")
             finally:
                 self.finished_at = time.time()
+                self._persist_logs()
                 storage.update_job_record(self.id,
                                           status=self.status,
                                           finished_at=self.finished_at,
@@ -83,6 +87,16 @@ class ScrapeJob:
 
         self._thread = threading.Thread(target=worker, daemon=True)
         self._thread.start()
+
+    def _persist_logs(self):
+        """Save the full log transcript so past jobs can be reviewed."""
+        logs_dir = os.path.join(storage.DATA_DIR, "logs")
+        try:
+            os.makedirs(logs_dir, exist_ok=True)
+            with open(os.path.join(logs_dir, f"{self.id}.txt"), "w", encoding="utf-8") as f:
+                f.write("\n".join(self.logs))
+        except Exception:
+            pass
 
     def stop(self):
         self.stop_event.set()
@@ -112,9 +126,13 @@ class JobManager:
                 raise RuntimeError("A scrape job is already running")
             job = ScrapeJob(job_type, params)
 
+            # Name is metadata, not a runner argument
+            name = params.pop("name", None) or _default_name(job_type)
+
             # Persist the job so posts can be filtered by it later
             storage.save_job_record({
                 "id": job.id,
+                "name": name,
                 "type": job_type,
                 "params": params,
                 "status": "running",
@@ -127,6 +145,11 @@ class JobManager:
             self.current = job
             self.last = job
             return job
+
+
+def _default_name(job_type):
+    label = _TYPE_LABELS.get(job_type, job_type)
+    return f"{label} — {time.strftime('%b %d, %H:%M')}"
 
     def status(self):
         job = self.last

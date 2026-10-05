@@ -24,6 +24,8 @@ def start_scrape():
         "urls": urls,
         "download_images": bool(body.get("download_images", True)),
     }
+    if body.get("name", "").strip():
+        params["name"] = body["name"].strip()
     if job_type in ("page_posts", "group_posts"):
         params["limit"] = max(1, int(body.get("limit", 10)))
         params["min_comments"] = max(0, int(body.get("min_comments", 0)))

@@ -17,6 +17,9 @@
         <button class="nav-item active" data-view="scrape">
           <span class="nav-icon">&#9889;</span> Scrape
         </button>
+        <button class="nav-item" data-view="jobs">
+          <span class="nav-icon">&#128203;</span> Jobs
+        </button>
         <button class="nav-item" data-view="posts">
           <span class="nav-icon">&#128193;</span> Posts
         </button>
@@ -79,6 +82,11 @@
             </label>
           </div>
 
+          <div class="field">
+            <label>Job name <small>(optional — shown in the Jobs list)</small></label>
+            <input type="text" id="jobName" placeholder="e.g. ICC daily scrape" autocomplete="off">
+          </div>
+
           <div class="actions">
             <button class="btn primary" id="startBtn">Start scraping</button>
             <button class="btn danger" id="stopBtn" hidden>Stop</button>
@@ -97,16 +105,39 @@
         </div>
       </section>
 
+      <!-- ============ JOBS VIEW ============ -->
+      <section id="view-jobs" class="view">
+        <header class="view-header">
+          <h1>Jobs</h1>
+          <p>Every scrape you launch. Open a job to browse only its posts.</p>
+        </header>
+
+        <div class="card table-card">
+          <table class="jobs-table">
+            <thead>
+              <tr>
+                <th>Name</th><th>Type</th><th>Status</th><th>Sources</th>
+                <th>Min comments</th><th>Posts</th><th>Created</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="jobsTableBody"></tbody>
+          </table>
+          <div class="empty-state" id="jobsEmpty" hidden>
+            <p>No jobs yet — run a scrape first.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ POSTS VIEW ============ -->
       <section id="view-posts" class="view">
         <header class="view-header">
           <h1>Scraped posts</h1>
-          <p>Browse, filter, view and download everything you've scraped.</p>
+          <p id="postsSubtitle">Browse, filter, view and download everything you've scraped.</p>
         </header>
 
-        <div class="card">
-          <h2>Jobs</h2>
-          <div class="jobs-row" id="jobsRow"></div>
+        <div class="card job-banner" id="jobBanner" hidden>
+          <span>&#128203; Filtered by job: <strong id="jobBannerName"></strong></span>
+          <button class="btn ghost small" id="clearJobBtn">Clear job filter</button>
         </div>
 
         <div class="card">
@@ -192,6 +223,17 @@
         <button class="btn ghost" id="modalCloseBtn">&times;</button>
       </div>
       <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Job logs modal -->
+  <div class="modal-backdrop" id="logsModal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="logsModalTitle">Job logs</h2>
+        <button class="btn ghost" id="logsCloseBtn">&times;</button>
+      </div>
+      <div class="modal-body"><pre id="logsContent" class="log-panel" style="height:60vh"></pre></div>
     </div>
   </div>
 
