@@ -180,29 +180,10 @@ function showView(name) {
 function openJob(job) {
   activeJobId = job.id;
   activeJobName = job.name || job.id;
-  updateJobBanner();
+  $("#postsSubtitle").textContent = `Showing posts from job "${activeJobName}". Filters below apply within this job.`;
   showView("posts");
   loadPosts();
 }
-
-function updateJobBanner() {
-  const banner = $("#jobBanner");
-  banner.hidden = !activeJobId;
-  if (activeJobId) {
-    $("#jobBannerName").textContent = activeJobName;
-    $("#postsSubtitle").textContent = `Showing posts from job "${activeJobName}". Filters below apply within this job.`;
-  } else {
-    $("#postsSubtitle").textContent = "Browse, filter, view and download everything you've scraped.";
-  }
-}
-
-$("#clearJobBtn").addEventListener("click", () => {
-  activeJobId = "";
-  activeJobName = "";
-  updateJobBanner();
-  showView("jobs");
-  renderJobsTable();
-});
 
 async function showJobLogs(job) {
   const res = await fetch(`/api/jobs/${job.id}/logs`);

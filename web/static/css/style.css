@@ -254,13 +254,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .cell-date { color: var(--text-dim); font-size: 12px; white-space: nowrap; }
 .cell-actions { display: flex; gap: 6px; justify-content: flex-end; }
 
-/* Active job banner in Posts view */
-.job-banner {
-  display: flex; justify-content: space-between; align-items: center;
-  border-color: var(--accent); background: rgba(79,124,255,.08);
-}
-.job-banner strong { color: var(--accent); }
-
 .empty-state { text-align: center; color: var(--text-dim); padding: 60px 0; }
 
 /* ---------- Modal ---------- */
