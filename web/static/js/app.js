@@ -209,7 +209,7 @@ async function renderJobsTable() {
     actions.append(
       btn("Logs", "secondary", () => showJobLogs(j)),
       btn("Open", "primary", () => openJob(j)),
-      btn("ZIP", "secondary", () => window.open(`/api/jobs/${j.id}/download`)),
+      btn("Download", "secondary", () => window.open(`/api/jobs/${j.id}/download`)),
     );
     tr.appendChild(actions);
     tbody.appendChild(tr);
@@ -286,6 +286,10 @@ function renderPostCard(p) {
   const typeLabel = { simple_post: "Single", page_post: "Page", group_post: "Group" }[p.post_type];
   const meta = document.createElement("div");
   meta.className = "post-meta";
+  meta.innerHTML = `<span class="tag">${typeLabel}</span>` +
+    (p.source ? `<span class="tag source">${esc(p.source)}</span>` : "") +
+    `<span class="tag">${esc(p.post_id)}</span>`;
+
   const select = document.createElement("input");
   select.type = "checkbox";
   select.className = "post-select";
@@ -296,10 +300,7 @@ function renderPostCard(p) {
     else selection.delete(card.dataset.key);
     updateSelectionBar();
   });
-  meta.appendChild(select);
-  meta.innerHTML += `<span class="tag">${typeLabel}</span>` +
-    (p.source ? `<span class="tag source">${esc(p.source)}</span>` : "") +
-    `<span class="tag">${esc(p.post_id)}</span>`;
+  meta.insertBefore(select, meta.firstChild);
 
   const text = document.createElement("div");
   text.className = "post-text";
@@ -316,7 +317,7 @@ function renderPostCard(p) {
   actions.className = "post-actions";
   actions.append(
     btn("View", "secondary", () => viewPost(p)),
-    btn("ZIP", "primary", () => window.open(`/api/posts/post-zip?type=${p.post_type}&source=${encodeURIComponent(p.source || "")}&id=${p.post_id}`)),
+    btn("Download", "primary", () => window.open(`/api/posts/post-zip?type=${p.post_type}&source=${encodeURIComponent(p.source || "")}&id=${p.post_id}`)),
     btn("JSON", "secondary", () => window.open(`/api/posts/download?type=${p.post_type}&source=${encodeURIComponent(p.source || "")}&id=${p.post_id}`)),
   );
   const open = document.createElement("a");
