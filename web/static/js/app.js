@@ -51,6 +51,8 @@ $("#startBtn").addEventListener("click", async () => {
   if (state.mode !== "simple_post") {
     body.limit = parseInt($("#limit").value) || 10;
     body.min_comments = parseInt($("#minComments").value) || 0;
+    if ($("#startDate").value) body.start_date = $("#startDate").value;
+    if ($("#endDate").value) body.end_date = $("#endDate").value;
   }
 
   const res = await fetch("/api/scrape", {

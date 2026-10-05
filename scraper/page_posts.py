@@ -30,9 +30,11 @@ def _headers(referer):
     }
 
 
-def _payload(page_id, cursor):
+def _payload(page_id, cursor, start_date=None, end_date=None):
     variables = {
-        "afterTime": None, "beforeTime": None, "count": 3, "cursor": cursor,
+        "afterTime": start_date,
+        "beforeTime": end_date,
+        "count": 3, "cursor": cursor,
         "feedLocation": "TIMELINE", "renderLocation": "timeline", "scale": 2,
         "id": page_id,
         "__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider": True,
@@ -105,7 +107,7 @@ def _story_nodes(cleaned_data):
 
 def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
                 batch_size=10, on_batch_complete=None, should_stop=None,
-                page_name_state=None):
+                page_name_state=None, start_date=None, end_date=None):
     """Fetch posts from a page/profile.
 
     - Resolves the page ID from the URL.
@@ -113,6 +115,7 @@ def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
       so the caller can fetch comments incrementally.
     - `page_name_state` is a dict {"name": None} shared across calls so the
       page name discovered on the first post is reused.
+    - `start_date`/`end_date` are epoch seconds (inclusive) filtering by post time.
     """
     page_id = extract_user_id_from_url(page_url)
     if not page_id:
@@ -124,11 +127,14 @@ def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
     headers = _headers(f"https://www.facebook.com/profile.php?id={page_id}")
     all_posts, batch_posts = [], []
     cursor, page_num = None, 1
+    reached_start = False
 
     if min_comments > 0:
         log(f"  Filtering posts with at least {min_comments} comments")
+    if start_date or end_date:
+        log(f"  Date filter: {start_date or 'any'} → {end_date or 'any'}")
 
-    while len(all_posts) < limit:
+    while len(all_posts) < limit and not reached_start:
         if should_stop and should_stop():
             log("  Stop requested — stopping page scrape")
             break
@@ -136,7 +142,7 @@ def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
         log(f"  Fetching page {page_num}...")
         cleaned = []
         for attempt in range(3):
-            r = graphql_post(_payload(page_id, cursor), headers=headers)
+            r = graphql_post(_payload(page_id, cursor, start_date, end_date), headers=headers)
             cleaned = parse_fb_response(r.text)
             if cleaned:
                 break
@@ -155,6 +161,17 @@ def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
             if is_reel_or_video_post(node):
                 log("  Skipping reel/video post")
                 continue
+
+            # Date filter: feed is newest-first, so once we pass the start
+            # date everything after is older — stop paginating.
+            created = node.get("creation_time")
+            if end_date and created and created > end_date:
+                log("  Skipping post newer than end date")
+                continue
+            if start_date and created and created < start_date:
+                log("  Reached posts older than start date — stopping")
+                reached_start = True
+                break
 
             comment_count = extract_comment_count(node)
             if min_comments > 0 and comment_count < min_comments:
@@ -184,6 +201,7 @@ def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
             post = {
                 "post_id": post_id,
                 "feedback_id": node.get("feedback", {}).get("id"),
+                "created_at": node.get("creation_time"),
                 "text": (node.get("comet_sections", {})
                              .get("content", {}).get("story", {})
                              .get("message", {}).get("text")),

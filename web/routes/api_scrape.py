@@ -28,6 +28,15 @@ def start_scrape():
         params["limit"] = max(1, int(body.get("limit", 10)))
         params["min_comments"] = max(0, int(body.get("min_comments", 0)))
 
+        try:
+            start_date, end_date = _parse_date_range(body.get("start_date"), body.get("end_date"))
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+
     try:
         job = manager.start(job_type, params)
     except RuntimeError as e:
@@ -35,6 +44,26 @@ def start_scrape():
 
     return jsonify({"job": job.to_dict()}), 202
 
+
+def _parse_date_range(start_date, end_date):
+    """Convert 'YYYY-MM-DD' strings to epoch seconds.
+
+    start_date → beginning of that day, end_date → end of that day (inclusive).
+    """
+    from datetime import datetime, timedelta
+
+    def parse(value, offset_days):
+        if not value:
+            return None
+        try:
+            d = datetime.strptime(value.strip(), "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"invalid date '{value}', expected YYYY-MM-DD")
+        if offset_days:
+            d += timedelta(days=1) - timedelta(seconds=1)  # end of day
+        return int(d.timestamp())
+
+    return parse(start_date, False), parse(end_date, True)
 
 @scrape_bp.route("/job", methods=["GET"])
 def job_status():

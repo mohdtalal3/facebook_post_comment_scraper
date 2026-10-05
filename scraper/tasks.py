@@ -31,7 +31,8 @@ def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, shou
 
 
 def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
-                   download_images=True, should_stop=None):
+                   download_images=True, should_stop=None,
+                   start_date=None, end_date=None):
     """Scrape posts + comments from one or more pages."""
     _init_session(cookies, fb_dtsg)
 
@@ -70,13 +71,15 @@ def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
         fetch_posts(url, limit=limit, min_comments=min_comments,
                     download_images=download_images, batch_size=2,
                     on_batch_complete=process_batch, should_stop=should_stop,
-                    page_name_state=name_state)
+                    page_name_state=name_state,
+                    start_date=start_date, end_date=end_date)
 
     return total_scraped
 
 
 def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
-                    download_images=True, should_stop=None):
+                    download_images=True, should_stop=None,
+                    start_date=None, end_date=None):
     """Scrape posts + comments from one or more groups."""
     _init_session(cookies, fb_dtsg)
 
@@ -115,6 +118,7 @@ def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
         fetch_posts(url, limit=limit, min_comments=min_comments,
                     download_images=download_images, batch_size=2,
                     on_batch_complete=process_batch, should_stop=should_stop,
-                    group_name_state=name_state)
+                    group_name_state=name_state,
+                    start_date=start_date, end_date=end_date)
 
     return total_scraped

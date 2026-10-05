@@ -56,8 +56,11 @@ def _story_nodes(item):
 
 def fetch_posts(group_url, limit=10, min_comments=0, download_images=True,
                 batch_size=10, on_batch_complete=None, should_stop=None,
-                group_name_state=None):
-    """Fetch posts from a Facebook group. Same batching contract as page_posts."""
+                group_name_state=None, start_date=None, end_date=None):
+    """Fetch posts from a Facebook group. Same batching contract as page_posts.
+
+    `start_date`/`end_date` are epoch seconds (inclusive) filtering by post time.
+    """
     group_id = extract_group_id_from_url(group_url)
     if not group_id:
         return []
@@ -68,11 +71,14 @@ def fetch_posts(group_url, limit=10, min_comments=0, download_images=True,
     headers = _headers(group_id)
     all_posts, batch_posts = [], []
     cursor, page_num = None, 1
+    reached_start = False
 
     if min_comments > 0:
         log(f"  Filtering posts with at least {min_comments} comments")
+    if start_date or end_date:
+        log(f"  Date filter: {start_date or 'any'} → {end_date or 'any'}")
 
-    while len(all_posts) < limit:
+    while len(all_posts) < limit and not reached_start:
         if should_stop and should_stop():
             log("  Stop requested — stopping group scrape")
             break
@@ -104,6 +110,17 @@ def fetch_posts(group_url, limit=10, min_comments=0, download_images=True,
                     log("  Skipping reel/video post")
                     continue
 
+                # Date filter: feed is newest-first, so once we pass the
+                # start date everything after is older — stop paginating.
+                created = node.get("creation_time")
+                if end_date and created and created > end_date:
+                    log("  Skipping post newer than end date")
+                    continue
+                if start_date and created and created < start_date:
+                    log("  Reached posts older than start date — stopping")
+                    reached_start = True
+                    break
+
                 comment_count = extract_comment_count(node)
                 if min_comments > 0 and comment_count < min_comments:
                     log(f"  Skipping post with {comment_count} comments (need {min_comments}+)")
@@ -131,6 +148,7 @@ def fetch_posts(group_url, limit=10, min_comments=0, download_images=True,
                 post = {
                     "id": node.get("id"),
                     "post_id": post_id,
+                    "created_at": node.get("creation_time"),
                     "text": (content_story.get("message", {}) or {}).get("text", ""),
                     "comment_count": comment_count,
                     "reaction_count": extract_reaction_count(node),
