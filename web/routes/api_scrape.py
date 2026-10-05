@@ -27,6 +27,7 @@ def start_scrape():
     if job_type in ("page_posts", "group_posts"):
         params["limit"] = max(1, int(body.get("limit", 10)))
         params["min_comments"] = max(0, int(body.get("min_comments", 0)))
+        params["fetch_comments"] = bool(body.get("fetch_comments", True))
 
         try:
             start_date, end_date = _parse_date_range(body.get("start_date"), body.get("end_date"))

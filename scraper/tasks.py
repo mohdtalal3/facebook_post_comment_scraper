@@ -32,7 +32,7 @@ def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, shou
 
 def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                    download_images=True, should_stop=None,
-                   start_date=None, end_date=None):
+                   start_date=None, end_date=None, fetch_comments=True):
     """Scrape posts + comments from one or more pages."""
     _init_session(cookies, fb_dtsg)
 
@@ -58,6 +58,10 @@ def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                 if not post_id:
                     continue
                 log(f"  Processing post {post_id}...")
+                if not fetch_comments:
+                    save_post_data("page_post", post_id, post, [])
+                    total_scraped += 1
+                    continue
                 try:
                     comments, _ = fetch_comments_for_post(post_id, should_stop=should_stop)
                     save_post_data("page_post", post_id, post, comments)
@@ -79,7 +83,7 @@ def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
 
 def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                     download_images=True, should_stop=None,
-                    start_date=None, end_date=None):
+                    start_date=None, end_date=None, fetch_comments=True):
     """Scrape posts + comments from one or more groups."""
     _init_session(cookies, fb_dtsg)
 
@@ -105,6 +109,10 @@ def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                 if not post_id:
                     continue
                 log(f"  Processing post {post_id}...")
+                if not fetch_comments:
+                    save_post_data("group_post", post_id, post, [])
+                    total_scraped += 1
+                    continue
                 try:
                     comments, _ = fetch_comments_for_post(post_id, should_stop=should_stop)
                     save_post_data("group_post", post_id, post, comments)

@@ -36,6 +36,7 @@ document.querySelectorAll(".mode-tab").forEach((tab) => {
     $("#urlLabel").innerHTML = `${label} <small>(one per line)</small>`;
     $("#urls").placeholder = placeholder;
     $("#pageOptions").hidden = state.mode === "simple_post";
+    $("#fetchCommentsField").hidden = state.mode === "simple_post";
   });
 });
 
@@ -51,6 +52,7 @@ $("#startBtn").addEventListener("click", async () => {
   if (state.mode !== "simple_post") {
     body.limit = parseInt($("#limit").value) || 10;
     body.min_comments = parseInt($("#minComments").value) || 0;
+    body.fetch_comments = $("#fetchComments").checked;
     if ($("#startDate").value) body.start_date = $("#startDate").value;
     if ($("#endDate").value) body.end_date = $("#endDate").value;
   }
