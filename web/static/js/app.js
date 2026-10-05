@@ -316,6 +316,7 @@ function renderPostCard(p) {
   actions.className = "post-actions";
   actions.append(
     btn("View", "secondary", () => viewPost(p)),
+    btn("ZIP", "primary", () => window.open(`/api/posts/post-zip?type=${p.post_type}&source=${encodeURIComponent(p.source || "")}&id=${p.post_id}`)),
     btn("JSON", "secondary", () => window.open(`/api/posts/download?type=${p.post_type}&source=${encodeURIComponent(p.source || "")}&id=${p.post_id}`)),
   );
   const open = document.createElement("a");

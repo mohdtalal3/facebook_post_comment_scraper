@@ -111,6 +111,14 @@ def _zip_post_folders(post_folders, zip_name):
     return buf.getvalue(), zip_name
 
 
+def post_zip(post_type, name_folder, post_id):
+    """Zip one post's folder (json + images). Returns (zip_bytes, filename) or None."""
+    folder = post_dir(post_type, name_folder, post_id)
+    if not os.path.isdir(folder):
+        return None
+    return _zip_post_folders([folder], f"{post_id}.zip")
+
+
 def job_zip(job_id):
     """Zip every post (json + images) belonging to a scrape job."""
     folders = []

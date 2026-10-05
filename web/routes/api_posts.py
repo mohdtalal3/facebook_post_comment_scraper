@@ -58,6 +58,18 @@ def download_images():
                     headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 
+@posts_bp.route("/post-zip", methods=["GET"])
+def post_zip():
+    result = storage.post_zip(request.args.get("type"),
+                              request.args.get("source"),
+                              request.args.get("id"))
+    if not result:
+        return jsonify({"error": "post not found"}), 404
+    zip_bytes, filename = result
+    return Response(zip_bytes, mimetype="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
 @posts_bp.route("/download-all", methods=["GET"])
 def download_all():
     result = storage.export_all_zip()
