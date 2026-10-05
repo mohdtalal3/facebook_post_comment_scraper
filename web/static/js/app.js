@@ -307,27 +307,6 @@ $("#clearSessionBtn").addEventListener("click", async () => {
   loadSession();
 });
 
-$("#chromeLoginBtn").addEventListener("click", async () => {
-  const res = await fetch("/api/settings/chrome/start", { method: "POST" });
-  const data = await res.json();
-  if (!res.ok) return toast(data.error || "Failed to open Chrome", true);
-  $("#chromeHint").hidden = false;
-  $("#chromeFinishBtn").hidden = false;
-  toast("Chrome opened — log in to Facebook");
-});
-
-$("#chromeFinishBtn").addEventListener("click", async () => {
-  $("#chromeFinishBtn").disabled = true;
-  const res = await fetch("/api/settings/chrome/finish", { method: "POST" });
-  const data = await res.json();
-  $("#chromeFinishBtn").disabled = false;
-  if (!res.ok) return toast(data.error || "Extraction failed", true);
-  $("#chromeHint").hidden = true;
-  $("#chromeFinishBtn").hidden = true;
-  toast("Session extracted from Chrome");
-  loadSession();
-});
-
 /* ---------------- Proxy settings ---------------- */
 $("#saveProxyBtn").addEventListener("click", async () => {
   const body = {};

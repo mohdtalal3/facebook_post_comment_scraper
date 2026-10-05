@@ -8,8 +8,6 @@ from scraper import config
 
 settings_bp = Blueprint("api_settings", __name__)
 
-_chrome_helper = None
-
 
 def _session_state():
     return {
@@ -85,32 +83,4 @@ def set_proxy():
         config.update_env(key, value)
         changed.append(key)
 
-    return jsonify(_session_state())
-
-
-@settings_bp.route("/chrome/start", methods=["POST"])
-def chrome_start():
-    global _chrome_helper
-    if _chrome_helper and _chrome_helper._thread and _chrome_helper._thread.is_alive():
-        return jsonify({"error": "Chrome login already in progress"}), 409
-
-    from scraper.logging_utils import log
-    _chrome_helper = auth.ChromeLoginHelper(log=log)
-    _chrome_helper.start()
-    return jsonify({"ok": True}), 202
-
-
-@settings_bp.route("/chrome/finish", methods=["POST"])
-def chrome_finish():
-    global _chrome_helper
-    if not _chrome_helper:
-        return jsonify({"error": "Chrome login was never started"}), 400
-
-    result = _chrome_helper.finish(timeout=180)
-    if result.get("error"):
-        return jsonify({"error": result["error"]}), 500
-
-    from scraper.config import set_session
-    set_session(cookies=auth.parse_cookies(result["cookies"]),
-                fb_dtsg=result["fb_dtsg"])
     return jsonify(_session_state())

@@ -13,7 +13,7 @@ Then open the browser and use the three views:
 
 - **Scrape** — pick a mode (Single Post / Page Posts / Group Posts), paste URLs, set post limit + min comments, toggle image downloading, and watch **live logs** while it runs.
 - **Posts** — browse everything you've scraped. Filter by type, source (page/group name), text search, and minimum comments. View posts with nested comments/replies, download the JSON, download images as a ZIP, or delete.
-- **Settings** — configure an authenticated session (cookie string, pasted cURL, or one-click Chrome login via SeleniumBase). Optional — public content works without it.
+- **Settings** — configure an authenticated session (paste a cookie string or a cURL command) and proxy URLs. Optional — public content works without it.
 
 ## Project structure
 
@@ -35,7 +35,7 @@ facebook/
 │   ├── group_posts.py      #   group post scraping
 │   ├── single_post.py      #   single post scraping (comments + images)
 │   ├── storage.py          #   data/ directory: save / list / filter / delete
-│   ├── auth.py             #   cookie parsing, cURL parsing, Chrome login
+│   ├── auth.py             #   cookie / cURL parsing helpers
 │   └── tasks.py            #   high-level scrape jobs used by the web app
 ├── web/                    # Flask app
 │   ├── jobs.py             #   background job manager + live log buffer

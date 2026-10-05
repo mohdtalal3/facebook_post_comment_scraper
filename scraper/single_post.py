@@ -27,6 +27,11 @@ def scrape_single_post(post_url, download_images=True, should_stop=None):
         "type": "simple_post",
         "post_info": post_info,
     }
+    if post_info:
+        if post_info.get("reaction_count"):
+            post_data["reaction_count"] = post_info["reaction_count"]
+        if post_info.get("share_count"):
+            post_data["share_count"] = post_info["share_count"]
     save_post_data("simple_post", post_id, post_data, comments)
 
     if download_images and post_info and post_info.get("media_id"):
