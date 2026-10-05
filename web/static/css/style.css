@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg: #0f1117;
   --bg-soft: #161a23;
   --card: #1c212e;
@@ -100,7 +101,7 @@ nav { display: flex; flex-direction: column; gap: 4px; }
 .field label small { color: var(--text-dim); font-weight: 400; }
 .field.inline { margin-bottom: 0; }
 
-textarea, input[type="text"], input[type="number"], select {
+textarea, input[type="text"], input[type="number"], input[type="date"], select {
   width: 100%;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -114,6 +115,19 @@ textarea, input[type="text"], input[type="number"], select {
 textarea { resize: vertical; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 textarea:focus, input:focus, select:focus { border-color: var(--accent); }
 select { cursor: pointer; }
+
+/* Native date picker rendered in dark mode */
+input[type="date"] {
+  color-scheme: dark;
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: .6;
+  transition: opacity .15s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
 
 .options-row {
   display: flex; gap: 20px; align-items: center;
