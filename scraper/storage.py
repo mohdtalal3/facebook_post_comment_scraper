@@ -14,7 +14,10 @@ import zipfile
 
 from .logging_utils import log
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from .config import app_root
+from .logging_utils import log
+
+PROJECT_ROOT = app_root()
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 JOBS_FILE = os.path.join(DATA_DIR, "jobs.json")
 

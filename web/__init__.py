@@ -1,11 +1,17 @@
 """Flask application factory."""
+import os
+import sys
+
 from flask import Flask, jsonify
+
+from scraper.config import bundle_root
 
 
 def create_app():
+    base = bundle_root()
     app = Flask(__name__,
-                template_folder="templates",
-                static_folder="static",
+                template_folder=os.path.join(base, "web", "templates"),
+                static_folder=os.path.join(base, "web", "static"),
                 static_url_path="/static")
 
     from .routes.views import views_bp

@@ -492,6 +492,7 @@ async function loadSession() {
     $("#rotatingProxyInput").value = s.proxies.rotating || "";
     $("#staticProxyInput").value = s.proxies.static || "";
   }
+  if (s.version) $("#versionLabel").textContent = `v${s.version}`;
 }
 
 /* ---------------- Helpers ---------------- */

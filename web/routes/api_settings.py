@@ -14,6 +14,7 @@ def _session_state():
         "has_cookies": bool(config.COOKIES),
         "cookie_count": len(config.COOKIES),
         "has_dtsg": bool(config.FB_DTSG),
+        "version": config.APP_VERSION,
         "proxies": {
             "rotating": config.mask_proxy(os.getenv("ROTATING_PROXY", "")),
             "static": config.mask_proxy(os.getenv("STATIC_PROXY", "")),

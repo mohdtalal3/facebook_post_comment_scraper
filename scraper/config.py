@@ -6,6 +6,7 @@ globals scattered across files.
 """
 import os
 import re
+import sys
 
 from dotenv import load_dotenv
 
@@ -14,6 +15,30 @@ from . import proxy_utils
 load_dotenv()
 
 GRAPHQL_URL = "https://www.facebook.com/api/graphql/"
+
+
+def app_root():
+    """Writable base directory: next to the executable when frozen (exe/dmg),
+    otherwise the project root."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def bundle_root():
+    """Read-only bundled assets root (PyInstaller extracts to _MEIPASS)."""
+    if getattr(sys, "frozen", False):
+        return sys._MEIPASS
+    return app_root()
+
+
+# App version: stamped into _version.py by the build workflow
+try:
+    from _version import __version__
+except ImportError:
+    __version__ = "dev"
+
+APP_VERSION = __version__
 
 # Session state (set at runtime by the web app / CLI)
 COOKIES = {}

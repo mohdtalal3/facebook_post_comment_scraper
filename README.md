@@ -1,29 +1,92 @@
 # Facebook Scraper 🕷️
 
-A Python-based Facebook scraping tool with a **Flask web GUI** for extracting posts, comments, and images from Facebook pages, groups, and individual posts — without the official Facebook API.
+A self-hosted Facebook scraping tool with a clean **Flask web GUI** — extract posts, comments, reactions, and images from Facebook pages, groups, and individual posts, without the official Facebook API.
 
-## Quick start
+Available as a **desktop app** (Windows `.exe` / macOS `.dmg`) or run from source.
+
+## ✨ Features
+
+**Scraping**
+- ⚡ Three modes: **Single Post** · **Page Posts** · **Group Posts**
+- 📅 **Start/end date filtering** — page feeds are filtered server-side, both modes stop paginating once posts fall below the start date
+- 💬 Full comments with **nested replies**, author names, author IDs, profile URLs
+- 👍 **Reaction counts**, share counts, and comment counts on every post
+- 🖼️ **Image downloading** (toggle) with automatic album traversal for 5+ image posts
+- 🔁 Robust retry logic with automatic proxy rotation on blocks/auth failures
+- 🔐 Optional authenticated session (cookie string or pasted cURL) for private content your account can access
+
+**Job management**
+- 📋 Every scrape runs as a **named job** — name it yourself or let it auto-name
+- 📜 **Live logs** streamed to the browser while a job runs; full transcripts saved per job
+- 🗂️ Open a job to browse **only its posts** — type/source/search filters apply within the job
+- ⏹️ Cooperative stop button
+
+**Export & browsing**
+- 📦 **ZIP export at every level**: single post, multi-select posts, whole job, or everything
+- 🔗 Every post carries a permalink — one click to open it on Facebook
+- 🔍 Filter by type, source (page/group name), text search, minimum comments
+- 🗑️ Delete posts you don't need
+
+**Proxies**
+- 🌐 Rotating proxy (anonymous sessions) and static proxy (cookie sessions) — configurable right in the UI, persisted to `.env`
+
+## 🚀 Quick start
+
+### Desktop app (easiest)
+
+Grab `FacebookScraper-x.x.x-windows.exe` or `FacebookScraper-x.x.x-macos.dmg` from the [latest release](../../releases) and run it — the UI opens in your browser automatically.
+
+### Run from source
 
 ```bash
 pip install -r requirements.txt
-python run.py            # opens on http://127.0.0.1:5001
+python run.py            # → http://127.0.0.1:5001
+python run.py --port 8080 --debug
 ```
 
-Then open the browser and use the three views:
+## 📖 Usage
 
-- **Scrape** — pick a mode (Single Post / Page Posts / Group Posts), paste URLs, set post limit + min comments, toggle image downloading, and watch **live logs** while it runs.
-- **Posts** — browse everything you've scraped. Filter by type, source (page/group name), text search, and minimum comments. View posts with nested comments/replies, download the JSON, download images as a ZIP, or delete.
-- **Settings** — configure an authenticated session (paste a cookie string or a cURL command) and proxy URLs. Optional — public content works without it.
+1. **Scrape** — pick a mode, paste URLs (one per line), set post limit / min comments / date range, toggle images & comments, hit **Start scraping** and watch the live logs.
+2. **Jobs** — every run shows up here with status and post count. **Open** a job to browse its posts (with filters scoped to it), **Logs** to see the full transcript, **Download** to get the whole job as a ZIP.
+3. **Posts** (inside a job) — filter, view posts with nested comments, select multiple posts for ZIP export, or delete.
+4. **Settings** — paste a cookie string or cURL command for authenticated scraping, and configure your proxies. All optional: public content works without any setup.
 
-## Project structure
+### Proxies (optional)
+
+Configure in **Settings → Proxy** or `.env`:
+
+```env
+# Used when NO cookies are configured (anonymous scraping)
+ROTATING_PROXY=http://user:pass@gw.provider.com:823
+
+# Used when a cookie session is active (fixed IP; port auto-rotates on failure)
+STATIC_PROXY=http://user__cr.fr:pass@gw.provider.com:10000
+```
+
+## 📦 Output
+
+Each post is saved under `data/`:
+
+```
+data/
+├── jobs.json                                  # scrape job history
+├── logs/{job_id}.txt                          # full log transcripts
+├── simple_post/{post_id}/{post_id}.json
+├── page_post/{page_name}/{post_id}/
+│   ├── {post_id}.json                         # text, counts, media, comments
+│   └── {post_id}.jpg ...                      # downloaded images
+└── group_post/{group_name}/{post_id}/
+```
+
+Post JSON includes: `text`, `permalink`, `created_at`, `reaction_count`, `share_count`, `comment_count`, `media`, and `comments` with nested `replies` (each with author, author_id, author_url, reaction_count).
+
+## 🏗️ Project structure
 
 ```
 facebook/
-├── run.py                  # Entry point: python run.py
-├── requirements.txt
-├── .env                    # PROXY / STATIC_PROXY / ROTATING_PROXY
+├── run.py                  # Entry point
 ├── scraper/                # Scraping library (no web code)
-│   ├── config.py           #   shared session state (cookies, fb_dtsg, proxies)
+│   ├── config.py           #   session state, paths, version
 │   ├── logging_utils.py    #   thread-aware log() with pluggable sink
 │   ├── http.py             #   retry logic + GraphQL response parsing
 │   ├── proxy_utils.py      #   proxy rotation / block detection
@@ -34,24 +97,32 @@ facebook/
 │   ├── page_posts.py       #   page/profile post scraping
 │   ├── group_posts.py      #   group post scraping
 │   ├── single_post.py      #   single post scraping (comments + images)
-│   ├── storage.py          #   data/ directory: save / list / filter / delete
-│   ├── auth.py             #   cookie / cURL parsing helpers
-│   └── tasks.py            #   high-level scrape jobs used by the web app
-├── web/                    # Flask app
-│   ├── jobs.py             #   background job manager + live log buffer
-│   ├── routes/             #   API blueprints (scrape, posts, settings)
-│   ├── templates/          #   index.html (single-page UI)
-│   └── static/             #   CSS + JS
-└── data/                   # Scraped output
-    ├── simple_post/{post_id}/
-    ├── page_post/{page_name}/{post_id}/
-    └── group_post/{group_name}/{post_id}/
+│   ├── storage.py          #   data/: save / list / filter / zip / delete
+│   ├── auth.py             #   cookie / cURL parsing
+│   └── tasks.py            #   high-level scrape jobs
+└── web/                    # Flask app
+    ├── jobs.py             #   background job manager + live logs
+    ├── routes/             #   API: scrape, posts, jobs, settings
+    ├── templates/          #   single-page UI
+    └── static/             #   CSS + JS
 ```
 
-Each scraped post is saved as `data/{type}/.../{post_id}.json` containing the post text, reaction/share/comment counts, media (with downloaded images alongside), and full comments with nested replies — including author names, author IDs, profile URLs, and reaction counts.
+## 🏷️ Releases & versioning (automated)
 
-## Notes
+Pushing a tag builds the desktop apps and publishes a release automatically:
 
-- **Proxies** are read from `.env` (`PROXY`, `STATIC_PROXY`, `ROTATING_PROXY`). Cookie sessions use the static proxy; anonymous sessions use the rotating one. Failed proxies rotate automatically on retry.
-- **One job at a time** — the UI disables Start while a job runs and offers a cooperative Stop.
-- The old PyQt6 GUI (`facebook_ui.py`) has been replaced by this web UI.
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The [build workflow](.github/workflows/build.yml) then:
+1. Stamps the version from the tag into the app (shown in the UI sidebar)
+2. Builds `FacebookScraper-{version}-windows.exe` and `FacebookScraper-{version}-macos.dmg`
+3. Creates a GitHub release with auto-generated notes and both artifacts attached
+
+Manual runs (`workflow_dispatch`) build artifacts without publishing a release.
+
+## ⚠️ Disclaimer
+
+This tool is for educational and personal archival purposes. Scraping Facebook may violate their Terms of Service — use responsibly, respect privacy, and don't scrape content you don't have permission to access.

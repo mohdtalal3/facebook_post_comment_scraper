@@ -1,0 +1,114 @@
+name: Build Release
+
+on:
+  push:
+    tags: ["v*"]          # v1.0.0 → builds exe + dmg and publishes a release
+  workflow_dispatch:       # manual run → builds artifacts only (no release)
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Stamp version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-dev+${GITHUB_SHA::8}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "__version__ = \"$VERSION\"" > _version.py
+          echo "Building version $VERSION"
+
+      - name: Build executable (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          pyinstaller --name FacebookScraper --onefile --noconfirm \
+            --add-data "web/templates;web/templates" \
+            --add-data "web/static;web/static" \
+            run.py
+          mv dist/FacebookScraper.exe "FacebookScraper-$VERSION-windows.exe"
+
+      - name: Build executable (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          pyinstaller --name FacebookScraper --onefile --noconfirm \
+            --add-data "web/templates:web/templates" \
+            --add-data "web/static:web/static" \
+            run.py
+
+      - name: Package macOS app bundle + dmg
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          mkdir -p "FacebookScraper.app/Contents/MacOS" "FacebookScraper.app/Contents/Resources"
+          cp dist/FacebookScraper "FacebookScraper.app/Contents/MacOS/FacebookScraper"
+          chmod +x "FacebookScraper.app/Contents/MacOS/FacebookScraper"
+          cat > "FacebookScraper.app/Contents/Info.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+            <dict>
+              <key>CFBundleExecutable</key><string>FacebookScraper</string>
+              <key>CFBundleIdentifier</key><string>com.mohdtalal.facebookscraper</string>
+              <key>CFBundleName</key><string>Facebook Scraper</string>
+              <key>CFBundlePackageType</key><string>APPL</string>
+              <key>CFBundleShortVersionString</key><string>$VERSION</string>
+              <key>CFBundleVersion</key><string>$VERSION</string>
+              <key>NSHighResolutionCapable</key><true/>
+            </dict>
+          </plist>
+          EOF
+          hdiutil create -volname "Facebook Scraper" -srcfolder FacebookScraper.app \
+            -ov -format UDZO "FacebookScraper-$VERSION-macos.dmg"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: |
+            FacebookScraper-*.exe
+            FacebookScraper-*.dmg
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: release
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

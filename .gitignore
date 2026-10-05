@@ -27,3 +27,7 @@ login.py
 
 
 
+_version.py
+build/
+dist/
+*.spec
