@@ -58,6 +58,16 @@ def download_images():
                     headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 
+@posts_bp.route("/download-all", methods=["GET"])
+def download_all():
+    result = storage.export_all_zip()
+    if not result:
+        return jsonify({"error": "no posts to export"}), 404
+    zip_bytes, filename = result
+    return Response(zip_bytes, mimetype="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
 @posts_bp.route("/delete", methods=["POST"])
 def delete_post():
     body = request.get_json(force=True, silent=True) or {}

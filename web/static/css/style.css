@@ -80,6 +80,7 @@ nav { display: flex; flex-direction: column; gap: 4px; }
 .view.active { display: block; }
 
 .view-header { margin-bottom: 24px; }
+.view-header.row-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .view-header h1 { font-size: 24px; margin-bottom: 4px; }
 .view-header p { color: var(--text-dim); }
 

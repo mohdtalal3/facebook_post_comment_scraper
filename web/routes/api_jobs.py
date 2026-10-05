@@ -20,3 +20,13 @@ def job_logs(job_id):
         return jsonify({"error": "logs not found for this job"}), 404
     with open(path, encoding="utf-8") as f:
         return Response(f.read(), mimetype="text/plain")
+
+
+@jobs_bp.route("/<job_id>/download")
+def job_download(job_id):
+    result = storage.job_zip(job_id)
+    if not result:
+        return jsonify({"error": "no posts found for this job"}), 404
+    zip_bytes, filename = result
+    return Response(zip_bytes, mimetype="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})

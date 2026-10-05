@@ -9,6 +9,7 @@ import io
 import json
 import os
 import shutil
+import time
 import zipfile
 
 from .logging_utils import log
@@ -87,6 +88,49 @@ def images_zip(post_type, name_folder, post_id):
             zf.write(os.path.join(folder, img), arcname=img)
     buf.seek(0)
     return buf.getvalue(), f"{post_id}_images.zip"
+
+
+def _zip_post_folders(post_folders, zip_name):
+    """Zip whole post folders (json + images) preserving data/ structure."""
+    if not post_folders:
+        return None
+
+    buf = io.BytesIO()
+    file_count = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for folder in post_folders:
+            for root, _dirs, files in os.walk(folder):
+                for f in files:
+                    full = os.path.join(root, f)
+                    zf.write(full, arcname=os.path.relpath(full, DATA_DIR))
+                    file_count += 1
+
+    if not file_count:
+        return None
+    buf.seek(0)
+    return buf.getvalue(), zip_name
+
+
+def job_zip(job_id):
+    """Zip every post (json + images) belonging to a scrape job."""
+    folders = []
+    for _p_type, _source, _post_id, json_path in _iter_post_files():
+        try:
+            with open(json_path, encoding="utf-8") as f:
+                if json.load(f).get("job_id") != job_id:
+                    continue
+        except Exception:
+            continue
+        folders.append(os.path.dirname(json_path))
+
+    return _zip_post_folders(folders, f"job_{job_id}.zip")
+
+
+def export_all_zip():
+    """Zip every scraped post (json + images)."""
+    folders = [os.path.dirname(p) for _, _, _, p in _iter_post_files()]
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    return _zip_post_folders(folders, f"facebook_posts_{stamp}.zip")
 
 
 def _iter_post_files():

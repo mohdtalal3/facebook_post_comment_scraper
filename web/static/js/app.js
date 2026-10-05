@@ -166,6 +166,7 @@ async function renderJobsTable() {
     actions.append(
       btn("Logs", "secondary", () => showJobLogs(j)),
       btn("Open", "primary", () => openJob(j)),
+      btn("ZIP", "secondary", () => window.open(`/api/jobs/${j.id}/download`)),
     );
     tr.appendChild(actions);
     tbody.appendChild(tr);
@@ -197,6 +198,10 @@ async function showJobLogs(job) {
 $("#logsCloseBtn").addEventListener("click", () => { $("#logsModal").hidden = true; });
 $("#logsModal").addEventListener("click", (e) => {
   if (e.target === $("#logsModal")) $("#logsModal").hidden = true;
+});
+
+$("#downloadAllBtn").addEventListener("click", () => {
+  window.open("/api/posts/download-all");
 });
 
 /* ---------------- Posts view ---------------- */
