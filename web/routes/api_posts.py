@@ -68,6 +68,22 @@ def download_all():
                     headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 
+@posts_bp.route("/download-selected", methods=["POST"])
+def download_selected():
+    body = request.get_json(force=True, silent=True) or {}
+    keys = [(p.get("type"), p.get("source"), p.get("id"))
+            for p in body.get("posts", []) if p.get("id")]
+    if not keys:
+        return jsonify({"error": "no posts selected"}), 400
+
+    result = storage.posts_zip(keys)
+    if not result:
+        return jsonify({"error": "no files found for the selected posts"}), 404
+    zip_bytes, filename = result
+    return Response(zip_bytes, mimetype="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
 @posts_bp.route("/delete", methods=["POST"])
 def delete_post():
     body = request.get_json(force=True, silent=True) or {}

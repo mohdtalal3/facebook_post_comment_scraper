@@ -286,6 +286,17 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   overflow-x: auto; white-space: pre-wrap; word-break: break-word;
 }
 
+/* ---------- Selection bar ---------- */
+.selection-bar {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--card); border: 1px solid var(--accent);
+  border-radius: 12px; padding: 10px 16px; z-index: 150;
+  display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.45); font-size: 13px; font-weight: 600;
+}
+
+.post-select { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex: 0 0 auto; }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);

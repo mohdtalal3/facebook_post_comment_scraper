@@ -133,6 +133,18 @@ def export_all_zip():
     return _zip_post_folders(folders, f"facebook_posts_{stamp}.zip")
 
 
+def posts_zip(post_keys):
+    """Zip selected posts. post_keys: list of (post_type, source, post_id)."""
+    folders = []
+    for p_type, source, post_id in post_keys:
+        folder = post_dir(p_type, source, post_id)
+        if os.path.isdir(folder):
+            folders.append(folder)
+
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    return _zip_post_folders(folders, f"selected_posts_{stamp}.zip")
+
+
 def _iter_post_files():
     """Yield (post_type, name_folder, post_id, json_path) for every saved post."""
     if not os.path.isdir(DATA_DIR):

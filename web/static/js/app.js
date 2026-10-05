@@ -135,6 +135,49 @@ function appendLog(message) {
 /* ---------------- Jobs view ---------------- */
 let activeJobId = "";
 let activeJobName = "";
+const selection = new Set();   // "type|source|id" keys of checked posts
+
+function updateSelectionBar() {
+  const bar = $("#selectionBar");
+  bar.hidden = selection.size === 0;
+  $("#selectionCount").textContent = `${selection.size} selected`;
+}
+
+$("#clearSelectionBtn").addEventListener("click", () => {
+  selection.clear();
+  document.querySelectorAll(".post-select").forEach((cb) => { cb.checked = false; });
+  updateSelectionBar();
+});
+
+$("#downloadSelectedBtn").addEventListener("click", async () => {
+  const posts = [...selection].map((key) => {
+    const [type, source, id] = key.split("|");
+    return { type, source, id };
+  });
+
+  $("#downloadSelectedBtn").disabled = true;
+  try {
+    const res = await fetch("/api/posts/download-selected", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ posts }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return toast(err.error || "Export failed", true);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = res.headers.get("Content-Disposition")?.match(/filename=(.+)/)?.[1] || "selected_posts.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Exported ${posts.length} post(s)`);
+  } finally {
+    $("#downloadSelectedBtn").disabled = false;
+  }
+});
 
 async function renderJobsTable() {
   const res = await fetch("/api/jobs");
@@ -238,11 +281,23 @@ async function loadPosts() {
 function renderPostCard(p) {
   const card = document.createElement("div");
   card.className = "post-card";
+  card.dataset.key = `${p.post_type}|${p.source || ""}|${p.post_id}`;
 
   const typeLabel = { simple_post: "Single", page_post: "Page", group_post: "Group" }[p.post_type];
   const meta = document.createElement("div");
   meta.className = "post-meta";
-  meta.innerHTML = `<span class="tag">${typeLabel}</span>` +
+  const select = document.createElement("input");
+  select.type = "checkbox";
+  select.className = "post-select";
+  select.title = "Select for ZIP export";
+  select.checked = selection.has(card.dataset.key);
+  select.addEventListener("change", () => {
+    if (select.checked) selection.add(card.dataset.key);
+    else selection.delete(card.dataset.key);
+    updateSelectionBar();
+  });
+  meta.appendChild(select);
+  meta.innerHTML += `<span class="tag">${typeLabel}</span>` +
     (p.source ? `<span class="tag source">${esc(p.source)}</span>` : "") +
     `<span class="tag">${esc(p.post_id)}</span>`;
 
