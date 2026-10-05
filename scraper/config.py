@@ -49,3 +49,36 @@ def apply_proxy(has_cookies: bool, log=None):
 
 def user_id():
     return COOKIES.get("c_user", "0")
+
+
+# ---- proxy configuration (runtime + .env persistence) -----------------
+ENV_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+
+
+def mask_proxy(url):
+    """Mask the password in a proxy URL: http://user:***@host:port"""
+    if not url:
+        return ""
+    return re.sub(r"(://[^:@/]+:)[^@/]+(@)", r"\1***\2", url)
+
+
+def update_env(key, value):
+    """Set an env var for the running process and persist it to .env."""
+    os.environ[key] = value
+
+    lines = []
+    if os.path.exists(ENV_FILE):
+        with open(ENV_FILE, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+
+    replaced = False
+    for i, line in enumerate(lines):
+        if line.split("=", 1)[0].strip() == key:
+            lines[i] = f"{key}={value}"
+            replaced = True
+            break
+    if not replaced:
+        lines.append(f"{key}={value}")
+
+    with open(ENV_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines).rstrip("\n") + "\n")

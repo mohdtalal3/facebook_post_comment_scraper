@@ -328,6 +328,25 @@ $("#chromeFinishBtn").addEventListener("click", async () => {
   loadSession();
 });
 
+/* ---------------- Proxy settings ---------------- */
+$("#saveProxyBtn").addEventListener("click", async () => {
+  const body = {};
+  const rotating = $("#rotatingProxyInput").value.trim();
+  const stat = $("#staticProxyInput").value.trim();
+  if (rotating && !rotating.includes("***")) body.rotating = rotating;
+  if (stat && !stat.includes("***")) body.static = stat;
+
+  const res = await fetch("/api/settings/proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) return toast(data.error || "Failed to save proxy", true);
+  toast("Proxy saved");
+  loadSession();
+});
+
 async function loadSession() {
   const res = await fetch("/api/settings");
   const s = await res.json();
@@ -342,6 +361,11 @@ async function loadSession() {
   $("#sessionDetail").textContent = active
     ? `Authenticated session active — ${s.cookie_count} cookies, fb_dtsg ${s.has_dtsg ? "set" : "not set"}.`
     : "No session configured. Scraping works without it for public content.";
+
+  if (s.proxies) {
+    $("#rotatingProxyInput").value = s.proxies.rotating || "";
+    $("#staticProxyInput").value = s.proxies.static || "";
+  }
 }
 
 /* ---------------- Helpers ---------------- */

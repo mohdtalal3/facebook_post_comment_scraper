@@ -1,4 +1,6 @@
-"""Settings API: cookies / fb_dtsg session config + Chrome login flow."""
+"""Settings API: cookies / fb_dtsg session, proxy config, Chrome login flow."""
+import os
+
 from flask import Blueprint, jsonify, request
 
 from scraper import auth
@@ -14,6 +16,10 @@ def _session_state():
         "has_cookies": bool(config.COOKIES),
         "cookie_count": len(config.COOKIES),
         "has_dtsg": bool(config.FB_DTSG),
+        "proxies": {
+            "rotating": config.mask_proxy(os.getenv("ROTATING_PROXY", "")),
+            "static": config.mask_proxy(os.getenv("STATIC_PROXY", "")),
+        },
     }
 
 
@@ -53,6 +59,32 @@ def set_settings():
 def clear_settings():
     from scraper.config import set_session
     set_session(cookies={}, fb_dtsg="")
+    return jsonify(_session_state())
+
+
+@settings_bp.route("/proxy", methods=["POST"])
+def set_proxy():
+    """Save proxy URLs. Values containing the *** mask are ignored (unchanged).
+
+    Body: {rotating: "...", static: "..."} — either key optional.
+    Empty string clears the proxy.
+    """
+    body = request.get_json(force=True, silent=True) or {}
+
+    updates = {
+        "ROTATING_PROXY": body.get("rotating"),
+        "STATIC_PROXY": body.get("static"),
+    }
+    changed = []
+    for key, value in updates.items():
+        if value is None:
+            continue
+        value = value.strip()
+        if "***" in value:
+            continue  # masked value sent back unchanged
+        config.update_env(key, value)
+        changed.append(key)
+
     return jsonify(_session_state())
 
 

@@ -144,6 +144,28 @@
           <p class="muted" id="chromeHint" hidden>Chrome opened — log in, then click "I've logged in".</p>
           <button class="btn secondary" id="chromeFinishBtn" hidden>I've logged in</button>
         </div>
+
+        <div class="card">
+          <h2>Proxy</h2>
+          <p class="muted">
+            Format: <code>http://user:pass@host:port</code>. Saved to <code>.env</code> and applied on the next scrape.
+            Rotating is used without cookies, static with a cookie session. Leave blank for direct connection.
+          </p>
+
+          <div class="field">
+            <label>Rotating proxy <small>(anonymous sessions)</small></label>
+            <input type="text" id="rotatingProxyInput" placeholder="http://user:pass@gw.provider.com:823" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label>Static proxy <small>(cookie sessions, fixed IP)</small></label>
+            <input type="text" id="staticProxyInput" placeholder="http://user__cr.fr:pass@gw.provider.com:10000" autocomplete="off">
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="saveProxyBtn">Save proxy</button>
+          </div>
+        </div>
       </section>
     </main>
   </div>
