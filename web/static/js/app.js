@@ -172,11 +172,17 @@ async function renderJobsTable() {
   });
 }
 
+function showView(name) {
+  document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
+  document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${name}`));
+}
+
 function openJob(job) {
   activeJobId = job.id;
   activeJobName = job.name || job.id;
   updateJobBanner();
-  document.querySelector('.nav-item[data-view="posts"]').click();
+  showView("posts");
+  loadPosts();
 }
 
 function updateJobBanner() {
@@ -194,7 +200,8 @@ $("#clearJobBtn").addEventListener("click", () => {
   activeJobId = "";
   activeJobName = "";
   updateJobBanner();
-  loadPosts();
+  showView("jobs");
+  renderJobsTable();
 });
 
 async function showJobLogs(job) {
