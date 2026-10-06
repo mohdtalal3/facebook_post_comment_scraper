@@ -28,7 +28,7 @@ Available as a **desktop app** (Windows `.exe` / macOS `.dmg`) or run from sourc
 - 🗑️ Delete posts you don't need
 
 **Proxies**
-- 🌐 Rotating proxy (anonymous sessions) and static proxy (cookie sessions) — configurable right in the UI, persisted to `.env`
+- 🌐 Rotating proxy (anonymous sessions) and static proxy (cookie sessions) — configurable right in the UI, persisted to `data/settings.json`
 
 ## 🚀 Quick start
 
@@ -64,15 +64,7 @@ Open http://localhost:5001. Scraped data persists in `./data` on the host. Proxy
 
 ### Proxies (optional)
 
-Configure in **Settings → Proxy** or `.env`:
-
-```env
-# Used when NO cookies are configured (anonymous scraping)
-ROTATING_PROXY=http://user:pass@gw.provider.com:823
-
-# Used when a cookie session is active (fixed IP; port auto-rotates on failure)
-STATIC_PROXY=http://user__cr.fr:pass@gw.provider.com:10000
-```
+Configure in **Settings → Proxy** — saved to `data/settings.json` and reloaded automatically on startup (works in Docker too, since `data/` is the mounted volume).
 
 ## 📦 Output
 

@@ -4,10 +4,13 @@ import sys
 
 from flask import Flask, jsonify
 
-from scraper.config import bundle_root
+from scraper.config import bundle_root, load_proxy_settings
 
 
 def create_app():
+    # Load proxies saved via the UI (data/settings.json) before anything else
+    load_proxy_settings()
+
     base = bundle_root()
     app = Flask(__name__,
                 template_folder=os.path.join(base, "web", "templates"),

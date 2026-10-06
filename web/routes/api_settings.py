@@ -66,22 +66,19 @@ def set_proxy():
     """Save proxy URLs. Values containing the *** mask are ignored (unchanged).
 
     Body: {rotating: "...", static: "..."} — either key optional.
-    Empty string clears the proxy.
+    Empty string clears the proxy. Persisted to data/settings.json.
     """
     body = request.get_json(force=True, silent=True) or {}
 
-    updates = {
-        "ROTATING_PROXY": body.get("rotating"),
-        "STATIC_PROXY": body.get("static"),
-    }
-    changed = []
-    for key, value in updates.items():
-        if value is None:
-            continue
-        value = value.strip()
-        if "***" in value:
-            continue  # masked value sent back unchanged
-        config.update_env(key, value)
-        changed.append(key)
+    rotating = body.get("rotating")
+    static = body.get("static")
+    if rotating is not None and "***" in rotating:
+        rotating = None
+    if static is not None and "***" in static:
+        static = None
 
+    if rotating is None and static is None:
+        return jsonify(_session_state())
+
+    config.save_proxy_settings(rotating=rotating, static=static)
     return jsonify(_session_state())

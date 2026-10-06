@@ -4,6 +4,7 @@ The web app (or a CLI script) sets the session once via `set_session()`
 and every scraper module reads the same values — no more per-module
 globals scattered across files.
 """
+import json
 import os
 import re
 import sys
@@ -76,8 +77,8 @@ def user_id():
     return COOKIES.get("c_user", "0")
 
 
-# ---- proxy configuration (runtime + .env persistence) -----------------
-ENV_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+# ---- proxy configuration (runtime + data/settings.json persistence) ----
+SETTINGS_FILE = os.path.join(app_root(), "data", "settings.json")
 
 
 def mask_proxy(url):
@@ -87,23 +88,45 @@ def mask_proxy(url):
     return re.sub(r"(://[^:@/]+:)[^@/]+(@)", r"\1***\2", url)
 
 
-def update_env(key, value):
-    """Set an env var for the running process and persist it to .env."""
-    os.environ[key] = value
+def load_proxy_settings():
+    """Load saved proxy settings (data/settings.json) into the environment.
 
-    lines = []
-    if os.path.exists(ENV_FILE):
-        with open(ENV_FILE, encoding="utf-8") as f:
-            lines = f.read().splitlines()
+    Called once at app startup so proxies saved via the UI survive restarts.
+    """
+    try:
+        with open(SETTINGS_FILE, encoding="utf-8") as f:
+            settings = json.load(f)
+    except Exception:
+        return
+    for key in ("ROTATING_PROXY", "STATIC_PROXY"):
+        value = settings.get(key.lower())
+        if value:
+            os.environ[key] = value
 
-    replaced = False
-    for i, line in enumerate(lines):
-        if line.split("=", 1)[0].strip() == key:
-            lines[i] = f"{key}={value}"
-            replaced = True
-            break
-    if not replaced:
-        lines.append(f"{key}={value}")
 
-    with open(ENV_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines).rstrip("\n") + "\n")
+def save_proxy_settings(rotating=None, static=None):
+    """Persist proxy URLs to data/settings.json and apply them immediately.
+
+    Passing an empty string clears that proxy.
+    """
+    settings = {}
+    try:
+        with open(SETTINGS_FILE, encoding="utf-8") as f:
+            settings = json.load(f)
+    except Exception:
+        pass
+
+    for key, value in (("rotating_proxy", rotating), ("static_proxy", static)):
+        if value is None:
+            continue
+        env_key = key.upper()
+        if value:
+            settings[key] = value
+            os.environ[env_key] = value
+        else:
+            settings.pop(key, None)
+            os.environ[env_key] = ""
+
+    os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(settings, f, indent=2)
