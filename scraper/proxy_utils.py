@@ -1,12 +1,14 @@
-import os
 import random
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()
 
 STATIC_PORT_MIN = 10000
 STATIC_PORT_MAX = 10000
+
+
+def _proxy_settings():
+    """Lazy import to avoid a circular dependency (config imports this module)."""
+    from . import config
+    return config.PROXY_SETTINGS
 
 
 def _replace_trailing_port(proxy_url: str, port: int) -> str:
@@ -25,9 +27,9 @@ def rotate_static_proxy():
     """
     Pick a brand-new random static port and return a fresh proxy dict.
     Call this whenever a static proxy appears blocked or unreachable.
-    Returns None if STATIC_PROXY (or fallback PROXY) is not configured.
+    Returns None if no static proxy is configured.
     """
-    proxy_base = os.getenv('STATIC_PROXY', '').strip() or os.getenv('PROXY', '').strip()
+    proxy_base = _proxy_settings().get("static", "").strip()
     if not proxy_base:
         return None
 
@@ -83,31 +85,28 @@ def select_proxy(has_cookies: bool):
     Return a requests-compatible proxy dict, choosing the mode based on
     whether a cookie session is active.
 
-    has_cookies=True  → static proxy from STATIC_PROXY (country can already be
-                        embedded in username, e.g. __cr.fr), used as-is first.
+    has_cookies=True  → static proxy (country can already be embedded in
+                        username, e.g. __cr.fr), used as-is first.
                         Port is changed later only if retry logic rotates proxy.
-    has_cookies=False → rotating proxy from ROTATING_PROXY as-is.
+    has_cookies=False → rotating proxy as-is.
 
-    Backward compatibility:
-    - If ROTATING_PROXY is missing, falls back to PROXY for rotating mode.
-    - If STATIC_PROXY is missing, falls back to PROXY for static mode.
+    Both come from data/settings.json (saved via the web UI).
     """
-    rotating_proxy = os.getenv('ROTATING_PROXY', '').strip() or os.getenv('PROXY', '').strip()
-    static_proxy = os.getenv('STATIC_PROXY', '').strip() or os.getenv('PROXY', '').strip()
+    settings = _proxy_settings()
+    rotating_proxy = settings.get("rotating", "").strip()
+    static_proxy = settings.get("static", "").strip()
 
     if has_cookies:
         if not static_proxy:
-            print("⚠️  No STATIC_PROXY configured — requests will be made without a proxy")
+            print("⚠️  No static proxy configured — requests will be made without a proxy")
             return None
 
-        proxy_url = static_proxy
         print("🔒 Proxy mode : STATIC  (cookie-based session, fixed IP)")
-        print("   Initial port: using STATIC_PROXY as configured")
-        print(f"   Proxy URL   : {proxy_url}")
-        return _build_proxy_dict(proxy_url)
+        print(f"   Proxy URL   : {static_proxy}")
+        return _build_proxy_dict(static_proxy)
 
     if not rotating_proxy:
-        print("⚠️  No PROXY configured — requests will be made without a proxy")
+        print("⚠️  No rotating proxy configured — requests will be made without a proxy")
         return None
 
     print("🔄 Proxy mode : ROTATING  (no cookies, rotating IP per request)")

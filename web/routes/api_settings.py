@@ -1,6 +1,4 @@
-"""Settings API: cookies / fb_dtsg session, proxy config, Chrome login flow."""
-import os
-
+"""Settings API: cookies / fb_dtsg session, proxy config."""
 from flask import Blueprint, jsonify, request
 
 from scraper import auth
@@ -16,8 +14,8 @@ def _session_state():
         "has_dtsg": bool(config.FB_DTSG),
         "version": config.APP_VERSION,
         "proxies": {
-            "rotating": config.mask_proxy(os.getenv("ROTATING_PROXY", "")),
-            "static": config.mask_proxy(os.getenv("STATIC_PROXY", "")),
+            "rotating": config.mask_proxy(config.PROXY_SETTINGS["rotating"]),
+            "static": config.mask_proxy(config.PROXY_SETTINGS["static"]),
         },
     }
 

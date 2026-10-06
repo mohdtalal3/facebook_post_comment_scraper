@@ -5,8 +5,4 @@ services:
       - "5001:5001"
     volumes:
       - ./data:/app/data
-    # Optional proxy configuration:
-    # environment:
-    #   ROTATING_PROXY: http://user:pass@gw.provider.com:823
-    #   STATIC_PROXY: http://user__cr.fr:pass@gw.provider.com:10000
     restart: unless-stopped

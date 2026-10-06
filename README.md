@@ -53,7 +53,7 @@ docker build -t facebook-scraper .
 docker run -p 5001:5001 -v ./data:/app/data facebook-scraper
 ```
 
-Open http://localhost:5001. Scraped data persists in `./data` on the host. Proxy config can be passed with `-e ROTATING_PROXY=... -e STATIC_PROXY=...` (see `docker-compose.yml`).
+Open http://localhost:5001. Scraped data and settings (proxies, etc.) persist in `./data` on the host — proxies saved in the UI survive rebuilds.
 
 ## 📖 Usage
 

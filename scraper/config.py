@@ -9,11 +9,7 @@ import os
 import re
 import sys
 
-from dotenv import load_dotenv
-
 from . import proxy_utils
-
-load_dotenv()
 
 GRAPHQL_URL = "https://www.facebook.com/api/graphql/"
 
@@ -77,8 +73,11 @@ def user_id():
     return COOKIES.get("c_user", "0")
 
 
-# ---- proxy configuration (runtime + data/settings.json persistence) ----
+# ---- proxy configuration (data/settings.json persistence) ----
 SETTINGS_FILE = os.path.join(app_root(), "data", "settings.json")
+
+# In-memory proxy state, loaded from settings.json at startup
+PROXY_SETTINGS = {"rotating": "", "static": ""}
 
 
 def mask_proxy(url):
@@ -89,19 +88,20 @@ def mask_proxy(url):
 
 
 def load_proxy_settings():
-    """Load saved proxy settings (data/settings.json) into the environment.
+    """Load saved proxy settings (data/settings.json).
 
     Called once at app startup so proxies saved via the UI survive restarts.
     """
+    global PROXY_SETTINGS
     try:
         with open(SETTINGS_FILE, encoding="utf-8") as f:
             settings = json.load(f)
     except Exception:
         return
-    for key in ("ROTATING_PROXY", "STATIC_PROXY"):
-        value = settings.get(key.lower())
-        if value:
-            os.environ[key] = value
+    PROXY_SETTINGS = {
+        "rotating": settings.get("rotating_proxy", "") or "",
+        "static": settings.get("static_proxy", "") or "",
+    }
 
 
 def save_proxy_settings(rotating=None, static=None):
@@ -109,24 +109,16 @@ def save_proxy_settings(rotating=None, static=None):
 
     Passing an empty string clears that proxy.
     """
-    settings = {}
-    try:
-        with open(SETTINGS_FILE, encoding="utf-8") as f:
-            settings = json.load(f)
-    except Exception:
-        pass
+    global PROXY_SETTINGS
+    if rotating is not None:
+        PROXY_SETTINGS["rotating"] = rotating.strip()
+    if static is not None:
+        PROXY_SETTINGS["static"] = static.strip()
 
-    for key, value in (("rotating_proxy", rotating), ("static_proxy", static)):
-        if value is None:
-            continue
-        env_key = key.upper()
-        if value:
-            settings[key] = value
-            os.environ[env_key] = value
-        else:
-            settings.pop(key, None)
-            os.environ[env_key] = ""
-
+    settings = {
+        "rotating_proxy": PROXY_SETTINGS["rotating"],
+        "static_proxy": PROXY_SETTINGS["static"],
+    }
     os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2)
