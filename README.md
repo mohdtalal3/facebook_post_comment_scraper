@@ -44,6 +44,17 @@ python run.py            # → http://127.0.0.1:5001
 python run.py --port 8080 --debug
 ```
 
+### Run with Docker
+
+```bash
+docker compose up -d
+# or without compose:
+docker build -t facebook-scraper .
+docker run -p 5001:5001 -v ./data:/app/data facebook-scraper
+```
+
+Open http://localhost:5001. Scraped data persists in `./data` on the host. Proxy config can be passed with `-e ROTATING_PROXY=... -e STATIC_PROXY=...` (see `docker-compose.yml`).
+
 ## 📖 Usage
 
 1. **Scrape** — pick a mode, paste URLs (one per line), set post limit / min comments / date range, toggle images & comments, hit **Start scraping** and watch the live logs.
@@ -106,22 +117,6 @@ facebook/
     ├── templates/          #   single-page UI
     └── static/             #   CSS + JS
 ```
-
-## 🏷️ Releases & versioning (automated)
-
-Pushing a tag builds the desktop apps and publishes a release automatically:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-The [build workflow](.github/workflows/build.yml) then:
-1. Stamps the version from the tag into the app (shown in the UI sidebar)
-2. Builds `FacebookScraper-{version}-windows.exe` and `FacebookScraper-{version}-macos.dmg`
-3. Creates a GitHub release with auto-generated notes and both artifacts attached
-
-Manual runs (`workflow_dispatch`) build artifacts without publishing a release.
 
 ## ⚠️ Disclaimer
 

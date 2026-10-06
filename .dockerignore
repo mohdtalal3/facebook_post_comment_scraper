@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+data/
+__pycache__/
+*.pyc
+.DS_Store
+build/
+dist/
+*.spec
+_version.py
+chromedata1
+extras/
+response.txt
