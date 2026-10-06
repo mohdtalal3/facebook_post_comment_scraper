@@ -4,6 +4,22 @@ A self-hosted Facebook scraping tool with a clean **Flask web GUI** — extract 
 
 Available as a **desktop app** (Windows `.exe` / macOS `.dmg`) or run from source.
 
+## 📸 Screenshots
+
+**Jobs** — every scrape tracked with status, sources and one-click logs/download:
+
+![Jobs view](docs/screenshot-jobs.png)
+
+**Posts** — browse, filter, and export what you've scraped:
+
+![Posts view](docs/screenshot-posts.png)
+
+Raw URLs (for tool integrations):
+
+- `https://raw.githubusercontent.com/mohdtalal3/facebook_post_comment_scraper/main/docs/screenshot-jobs.png`
+- `https://raw.githubusercontent.com/mohdtalal3/facebook_post_comment_scraper/main/docs/screenshot-posts.png`
+- `https://raw.githubusercontent.com/mohdtalal3/facebook_post_comment_scraper/main/docs/screenshot-scrape.png`
+
 ## ✨ Features
 
 **Scraping**
