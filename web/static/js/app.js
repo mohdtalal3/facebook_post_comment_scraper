@@ -521,16 +521,6 @@ function debounce(fn, ms) {
 
 /* ---------------- Init ---------------- */
 (async function init() {
-  // Deep-link support: /?view=jobs opens that tab directly
-  const params = new URLSearchParams(location.search);
-  const view = params.get("view");
-  if (view && document.getElementById(`view-${view}`)) {
-    showView(view);
-    if (view === "jobs") renderJobsTable();
-    if (view === "posts") loadPosts();
-    if (view === "settings") loadSession();
-  }
-
   loadSession();
   const res = await fetch("/api/job");
   const job = await res.json();
