@@ -15,8 +15,10 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
+            ext: exe
           - os: macos-latest
             platform: macos
+            ext: dmg
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -105,4 +107,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" --generate-notes || true
           gh release upload "$GITHUB_REF_NAME" \
-            FacebookScraper-*.exe FacebookScraper-*.dmg --clobber
+            "FacebookScraper-$VERSION-${{ matrix.platform }}.${{ matrix.ext }}" --clobber
