@@ -52,6 +52,11 @@ Raw URLs (for tool integrations):
 
 Grab `FacebookScraper-x.x.x-windows.exe` or `FacebookScraper-x.x.x-macos.dmg` from the [latest release](../../releases) and run it — the UI opens in your browser automatically.
 
+> **macOS first launch:** the app is ad-hoc signed (no paid Apple cert), so Gatekeeper asks for confirmation once.
+> Right-click the app → **Open** → Open. If it says "damaged", run:
+> `xattr -cr /Applications/FacebookScraper.app`
+> The app picks the next free port automatically if 5001 is taken.
+
 ### Run from source
 
 ```bash

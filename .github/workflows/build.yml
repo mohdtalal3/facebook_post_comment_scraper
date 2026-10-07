@@ -86,6 +86,9 @@ jobs:
             </dict>
           </plist>
           EOF
+          # Ad-hoc sign: without this, quarantined downloads get killed by Gatekeeper
+          codesign --force --deep -s - FacebookScraper.app
+          codesign --verify FacebookScraper.app
           hdiutil create -volname "Facebook Scraper" -srcfolder FacebookScraper.app \
             -ov -format UDZO "FacebookScraper-$VERSION-macos.dmg"
 

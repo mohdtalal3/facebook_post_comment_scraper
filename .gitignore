@@ -31,3 +31,4 @@ _version.py
 build/
 dist/
 *.spec
+FacebookScraper.app/
