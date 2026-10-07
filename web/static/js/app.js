@@ -17,7 +17,7 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
     $(`#view-${btn.dataset.view}`).classList.add("active");
     if (btn.dataset.view === "jobs") renderJobsTable();
     if (btn.dataset.view === "posts") loadPosts();
-    if (btn.dataset.view === "settings") loadSession();
+    if (btn.dataset.view === "settings") { loadSession(); loadProxyFields(); }
   });
 });
 
@@ -51,6 +51,9 @@ $("#startBtn").addEventListener("click", async () => {
     download_images: $("#downloadImages").checked,
   };
   if ($("#jobName").value.trim()) body.name = $("#jobName").value.trim();
+
+  const savedProxies = getSavedProxies();
+  if (savedProxies.rotating || savedProxies.static) body.proxies = savedProxies;
   if (state.mode !== "simple_post") {
     body.limit = parseInt($("#limit").value) || 10;
     body.min_comments = parseInt($("#minComments").value) || 0;
@@ -454,23 +457,25 @@ $("#clearSessionBtn").addEventListener("click", async () => {
   loadSession();
 });
 
-/* ---------------- Proxy settings ---------------- */
-$("#saveProxyBtn").addEventListener("click", async () => {
-  const body = {};
-  const rotating = $("#rotatingProxyInput").value.trim();
-  const stat = $("#staticProxyInput").value.trim();
-  if (rotating && !rotating.includes("***")) body.rotating = rotating;
-  if (stat && !stat.includes("***")) body.static = stat;
+/* ---------------- Proxy settings (browser localStorage only) ---------------- */
+const PROXY_KEY = "fb_proxy_settings";
 
-  const res = await fetch("/api/settings/proxy", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) return toast(data.error || "Failed to save proxy", true);
-  toast("Proxy saved");
-  loadSession();
+function loadProxyFields() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(PROXY_KEY)) || {}; } catch (_) {}
+  $("#rotatingProxyInput").value = saved.rotating || "";
+  $("#staticProxyInput").value = saved.static || "";
+}
+
+function getSavedProxies() {
+  try { return JSON.parse(localStorage.getItem(PROXY_KEY)) || {}; } catch (_) { return {}; }
+}
+
+$("#saveProxyBtn").addEventListener("click", () => {
+  const rotating = $("#rotatingProxyInput").value.trim();
+  const staticProxy = $("#staticProxyInput").value.trim();
+  localStorage.setItem(PROXY_KEY, JSON.stringify({ rotating, static: staticProxy }));
+  toast("Proxy saved to your browser's local storage");
 });
 
 async function loadSession() {
@@ -488,10 +493,6 @@ async function loadSession() {
     ? `Authenticated session active — ${s.cookie_count} cookies, fb_dtsg ${s.has_dtsg ? "set" : "not set"}.`
     : "No session configured. Scraping works without it for public content.";
 
-  if (s.proxies) {
-    $("#rotatingProxyInput").value = s.proxies.rotating || "";
-    $("#staticProxyInput").value = s.proxies.static || "";
-  }
   if (s.version) $("#versionLabel").textContent = `v${s.version}`;
 }
 

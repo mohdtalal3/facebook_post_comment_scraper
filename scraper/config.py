@@ -73,10 +73,7 @@ def user_id():
     return COOKIES.get("c_user", "0")
 
 
-# ---- proxy configuration (data/settings.json persistence) ----
-SETTINGS_FILE = os.path.join(app_root(), "data", "settings.json")
-
-# In-memory proxy state, loaded from settings.json at startup
+# ---- proxy configuration (in-memory only; the UI keeps it in localStorage) ----
 PROXY_SETTINGS = {"rotating": "", "static": ""}
 
 
@@ -87,38 +84,9 @@ def mask_proxy(url):
     return re.sub(r"(://[^:@/]+:)[^@/]+(@)", r"\1***\2", url)
 
 
-def load_proxy_settings():
-    """Load saved proxy settings (data/settings.json).
-
-    Called once at app startup so proxies saved via the UI survive restarts.
-    """
-    global PROXY_SETTINGS
-    try:
-        with open(SETTINGS_FILE, encoding="utf-8") as f:
-            settings = json.load(f)
-    except Exception:
-        return
-    PROXY_SETTINGS = {
-        "rotating": settings.get("rotating_proxy", "") or "",
-        "static": settings.get("static_proxy", "") or "",
-    }
-
-
-def save_proxy_settings(rotating=None, static=None):
-    """Persist proxy URLs to data/settings.json and apply them immediately.
-
-    Passing an empty string clears that proxy.
-    """
-    global PROXY_SETTINGS
+def set_proxies(rotating=None, static=None):
+    """Set proxy URLs for the running process (never persisted to disk)."""
     if rotating is not None:
         PROXY_SETTINGS["rotating"] = rotating.strip()
     if static is not None:
         PROXY_SETTINGS["static"] = static.strip()
-
-    settings = {
-        "rotating_proxy": PROXY_SETTINGS["rotating"],
-        "static_proxy": PROXY_SETTINGS["static"],
-    }
-    os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2)

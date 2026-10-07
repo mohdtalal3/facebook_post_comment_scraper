@@ -189,8 +189,10 @@
         <div class="card">
           <h2>Proxy</h2>
           <p class="muted">
-            Format: <code>http://user:pass@host:port</code>. Saved to <code>.env</code> and applied on the next scrape.
-            Rotating is used without cookies, static with a cookie session. Leave blank for direct connection.
+            Format: <code>http://user:pass@host:port</code>.
+            <strong>Stored only in your browser's local storage</strong> — never saved on the server or in any file —
+            and sent with each scrape request. Rotating is used without cookies, static with a cookie session.
+            Leave blank for direct connection.
           </p>
 
           <div class="field">

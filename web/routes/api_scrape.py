@@ -24,6 +24,14 @@ def start_scrape():
         "urls": urls,
         "download_images": bool(body.get("download_images", True)),
     }
+    # Proxies come from the browser's localStorage on every request —
+    # the server never stores them
+    proxies = body.get("proxies") or {}
+    if isinstance(proxies, dict) and (proxies.get("rotating") or proxies.get("static")):
+        params["proxies"] = {
+            "rotating": str(proxies.get("rotating") or ""),
+            "static": str(proxies.get("static") or ""),
+        }
     if body.get("name", "").strip():
         params["name"] = body["name"].strip()
     if job_type in ("page_posts", "group_posts"):

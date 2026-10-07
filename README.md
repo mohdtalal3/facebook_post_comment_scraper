@@ -85,7 +85,7 @@ Open http://localhost:5001. Scraped data and settings (proxies, etc.) persist in
 
 ### Proxies (optional)
 
-Configure in **Settings → Proxy** — saved to `data/settings.json` and reloaded automatically on startup (works in Docker too, since `data/` is the mounted volume).
+Configure in **Settings → Proxy**. Proxies are **stored only in your browser's local storage** — never written to a file on the server — and are sent with each scrape request, where they're used in memory for that run.
 
 ## 📦 Output
 

@@ -4,16 +4,18 @@ from .config import apply_proxy, set_session
 from .logging_utils import log, set_sink, clear_sink
 
 
-def _init_session(cookies, fb_dtsg):
+def _init_session(cookies, fb_dtsg, proxies=None):
     """Use the explicitly passed session, or keep whatever Settings configured."""
     if cookies is not None or fb_dtsg is not None:
         set_session(cookies, fb_dtsg)
+    if proxies:
+        config.set_proxies(**proxies)
     apply_proxy(bool(config.COOKIES), log=log)
 
 
-def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, should_stop=None, job_id=None):
+def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, should_stop=None, job_id=None, proxies=None):
     """Scrape one or more single posts. Returns list of scraped post IDs."""
-    _init_session(cookies, fb_dtsg)
+    _init_session(cookies, fb_dtsg, proxies)
 
     scraped = []
     for i, url in enumerate(urls, 1):
@@ -32,9 +34,9 @@ def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, shou
 
 def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                    download_images=True, should_stop=None,
-                   start_date=None, end_date=None, fetch_comments=True, job_id=None):
+                   start_date=None, end_date=None, fetch_comments=True, job_id=None, proxies=None):
     """Scrape posts + comments from one or more pages."""
-    _init_session(cookies, fb_dtsg)
+    _init_session(cookies, fb_dtsg, proxies)
 
     from .page_posts import fetch_posts
     from .comments import fetch_comments_for_post
@@ -83,9 +85,9 @@ def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
 
 def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                     download_images=True, should_stop=None,
-                    start_date=None, end_date=None, fetch_comments=True, job_id=None):
+                    start_date=None, end_date=None, fetch_comments=True, job_id=None, proxies=None):
     """Scrape posts + comments from one or more groups."""
-    _init_session(cookies, fb_dtsg)
+    _init_session(cookies, fb_dtsg, proxies)
 
     from .group_posts import fetch_posts
     from .comments import fetch_comments_for_post

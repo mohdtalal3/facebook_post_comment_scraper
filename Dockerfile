@@ -17,7 +17,6 @@ VOLUME /app/data
 
 EXPOSE 5001
 
-# Proxy config can be passed at runtime:
-#   docker run -e ROTATING_PROXY=http://user:pass@host:port ...
-# (environment variables take precedence over a mounted .env)
+# Proxy config is entered in the web UI and stored in the browser's
+# local storage — nothing sensitive is kept in the container
 CMD ["python", "run.py", "--host", "0.0.0.0"]

@@ -13,10 +13,6 @@ def _session_state():
         "cookie_count": len(config.COOKIES),
         "has_dtsg": bool(config.FB_DTSG),
         "version": config.APP_VERSION,
-        "proxies": {
-            "rotating": config.mask_proxy(config.PROXY_SETTINGS["rotating"]),
-            "static": config.mask_proxy(config.PROXY_SETTINGS["static"]),
-        },
     }
 
 
