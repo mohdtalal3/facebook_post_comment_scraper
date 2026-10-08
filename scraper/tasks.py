@@ -23,10 +23,13 @@ def run_simple_post(urls, cookies=None, fb_dtsg=None, download_images=True, shou
             log("Stop requested — halting")
             break
         log(f"\n[{i}/{len(urls)}] Processing: {url}")
-        from .single_post import scrape_single_post
-        post_id = scrape_single_post(url, download_images=download_images, should_stop=should_stop)
-        if post_id:
-            scraped.append(post_id)
+        try:
+            from .single_post import scrape_single_post
+            post_id = scrape_single_post(url, download_images=download_images, should_stop=should_stop)
+            if post_id:
+                scraped.append(post_id)
+        except Exception as e:
+            log(f"  Error scraping post: {e} — continuing with next URL")
         import time
         time.sleep(1)
     return scraped
@@ -74,11 +77,14 @@ def run_page_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                 import time
                 time.sleep(1)
 
-        fetch_posts(url, limit=limit, min_comments=min_comments,
-                    download_images=download_images, batch_size=2,
-                    on_batch_complete=process_batch, should_stop=should_stop,
-                    page_name_state=name_state,
-                    start_date=start_date, end_date=end_date)
+        try:
+            fetch_posts(url, limit=limit, min_comments=min_comments,
+                        download_images=download_images, batch_size=2,
+                        on_batch_complete=process_batch, should_stop=should_stop,
+                        page_name_state=name_state,
+                        start_date=start_date, end_date=end_date)
+        except Exception as e:
+            log(f"  Error scraping page: {e} — continuing with next URL")
 
     return total_scraped
 
@@ -125,10 +131,13 @@ def run_group_posts(urls, limit=10, min_comments=0, cookies=None, fb_dtsg=None,
                 import time
                 time.sleep(1)
 
-        fetch_posts(url, limit=limit, min_comments=min_comments,
-                    download_images=download_images, batch_size=2,
-                    on_batch_complete=process_batch, should_stop=should_stop,
-                    group_name_state=name_state,
-                    start_date=start_date, end_date=end_date)
+        try:
+            fetch_posts(url, limit=limit, min_comments=min_comments,
+                        download_images=download_images, batch_size=2,
+                        on_batch_complete=process_batch, should_stop=should_stop,
+                        group_name_state=name_state,
+                        start_date=start_date, end_date=end_date)
+        except Exception as e:
+            log(f"  Error scraping group: {e} — continuing with next URL")
 
     return total_scraped

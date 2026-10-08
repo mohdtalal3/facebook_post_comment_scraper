@@ -158,73 +158,82 @@ def fetch_posts(page_url, limit=10, min_comments=0, download_images=True,
         for node in nodes:
             if should_stop and should_stop():
                 break
-            if is_reel_or_video_post(node):
-                log("  Skipping reel/video post")
-                continue
-
-            # Date filter: feed is newest-first, so once we pass the start
-            # date everything after is older — stop paginating.
-            created = node.get("creation_time")
-            if end_date and created and created > end_date:
-                log("  Skipping post newer than end date")
-                continue
-            if start_date and created and created < start_date:
-                log("  Reached posts older than start date — stopping")
-                reached_start = True
-                break
-
-            comment_count = extract_comment_count(node)
-            if min_comments > 0 and comment_count < min_comments:
-                log(f"  Skipping post with {comment_count} comments (need {min_comments}+)")
-                continue
-
-            if not page_name_state["name"]:
-                page_name_state["name"] = extract_page_name(node)
-                if page_name_state["name"]:
-                    log(f"  Page name: {page_name_state['name']}")
-
-            post_id = node.get("post_id")
-            if not post_id:
-                continue
-
-            name_folder = sanitize_name_folder(page_name_state["name"]) or "Unknown"
-            if post_exists("page_post", name_folder, post_id):
-                log(f"  Skipping already scraped post: {post_id}")
-                continue
-
             try:
-                permalink = node["attachments"][0]["styles"]["attachment"]["url"]
-            except Exception:
-                permalink = None
-            if not permalink:
-                permalink = f"https://www.facebook.com/{post_id}"
+                if is_reel_or_video_post(node):
+                    log("  Skipping reel/video post")
+                    continue
 
-            media_dir = f"page_post/{name_folder}"
-            post = {
-                "post_id": post_id,
-                "feedback_id": node.get("feedback", {}).get("id"),
-                "created_at": node.get("creation_time"),
-                "text": (node.get("comet_sections", {})
-                             .get("content", {}).get("story", {})
-                             .get("message", {}).get("text")),
-                "permalink": permalink,
-                "comment_count": comment_count,
-                "reaction_count": extract_reaction_count(node),
-                "share_count": extract_share_count(node),
-                "page_name": page_name_state["name"],
-                "media": extract_media(node, post_id, media_dir, download_images),
-            }
+                # Date filter: feed is newest-first, so once we pass the start
+                # date everything after is older — stop paginating.
+                created = node.get("creation_time")
+                if end_date and created and created > end_date:
+                    log("  Skipping post newer than end date")
+                    continue
+                if start_date and created and created < start_date:
+                    log("  Reached posts older than start date — stopping")
+                    reached_start = True
+                    break
 
-            batch_posts.append(post)
-            all_posts.append(post)
+                comment_count = extract_comment_count(node)
+                if min_comments > 0 and comment_count < min_comments:
+                    log(f"  Skipping post with {comment_count} comments (need {min_comments}+)")
+                    continue
 
-            if batch_size > 0 and len(batch_posts) >= batch_size and on_batch_complete:
-                log(f"  Batch complete: {len(batch_posts)} posts. Total: {len(all_posts)}/{limit}")
-                on_batch_complete(batch_posts, len(all_posts), limit)
-                batch_posts = []
+                if not page_name_state["name"]:
+                    page_name_state["name"] = extract_page_name(node)
+                    if page_name_state["name"]:
+                        log(f"  Page name: {page_name_state['name']}")
 
-            if len(all_posts) >= limit:
-                break
+                post_id = node.get("post_id")
+                if not post_id:
+                    continue
+
+                name_folder = sanitize_name_folder(page_name_state["name"]) or "Unknown"
+                if post_exists("page_post", name_folder, post_id):
+                    log(f"  Skipping already scraped post: {post_id}")
+                    continue
+
+                try:
+                    permalink = node["attachments"][0]["styles"]["attachment"]["url"]
+                except Exception:
+                    permalink = None
+                if not permalink:
+                    permalink = f"https://www.facebook.com/{post_id}"
+
+                media_dir = f"page_post/{name_folder}"
+
+                content_story = (((node.get("comet_sections") or {}).get("content") or {})
+                                 .get("story") or {})
+                post_text = (content_story.get("message") or {}).get("text")
+
+                post = {
+                    "post_id": post_id,
+                    "feedback_id": (node.get("feedback") or {}).get("id"),
+                    "created_at": node.get("creation_time"),
+                    "text": post_text,
+                    "permalink": permalink,
+                    "comment_count": comment_count,
+                    "reaction_count": extract_reaction_count(node),
+                    "share_count": extract_share_count(node),
+                    "page_name": page_name_state["name"],
+                    "media": extract_media(node, post_id, media_dir, download_images),
+                }
+
+                batch_posts.append(post)
+                all_posts.append(post)
+
+                if batch_size > 0 and len(batch_posts) >= batch_size and on_batch_complete:
+                    log(f"  Batch complete: {len(batch_posts)} posts. Total: {len(all_posts)}/{limit}")
+                    on_batch_complete(batch_posts, len(all_posts), limit)
+                    batch_posts = []
+
+                if len(all_posts) >= limit:
+                    break
+            except Exception as e:
+                # Malformed post node — skip it and keep going, the cursor
+                # is already in hand so the next page can still have posts
+                log(f"  Skipping malformed post (error: {e})")
+                continue
 
         page_info = None
         if timeline_block:

@@ -128,29 +128,33 @@ def fetch_comments(feedback_id):
 
 def _extract_post_info(node):
     """Pull parent post story/media IDs out of the first comment response."""
-    parent = (node.get("comet_comment_author_name_and_badges_renderer", {})
-                  .get("comment", {})
-                  .get("parent_post_story", {})) or node.get("parent_post_story", {})
-    if not parent:
+    try:
+        parent = ((node.get("comet_comment_author_name_and_badges_renderer") or {})
+                  .get("comment") or {}
+                  .get("parent_post_story")) or node.get("parent_post_story") or {}
+        if not parent:
+            return None
+
+        info = {"post_story_id": parent.get("id"), "media_id": None}
+        for attachment in parent.get("attachments") or []:
+            media = (attachment or {}).get("media") or {}
+            if media.get("id"):
+                info["media_id"] = media.get("id")
+                break
+
+        from .extractors import extract_reaction_count, extract_share_count
+        reaction_count = extract_reaction_count(parent)
+        share_count = extract_share_count(parent)
+        if reaction_count:
+            info["reaction_count"] = reaction_count
+        if share_count:
+            info["share_count"] = share_count
+
+        log(f"  Extracted post info: {info}")
+        return info
+    except Exception as e:
+        log(f"  Could not extract post info: {e}")
         return None
-
-    info = {"post_story_id": parent.get("id"), "media_id": None}
-    for attachment in parent.get("attachments", []):
-        media = attachment.get("media", {})
-        if media and media.get("id"):
-            info["media_id"] = media.get("id")
-            break
-
-    from .extractors import extract_reaction_count, extract_share_count
-    reaction_count = extract_reaction_count(parent)
-    share_count = extract_share_count(parent)
-    if reaction_count:
-        info["reaction_count"] = reaction_count
-    if share_count:
-        info["share_count"] = share_count
-
-    log(f"  Extracted post info: {info}")
-    return info
 
 
 def fetch_replies(comment):

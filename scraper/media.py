@@ -135,6 +135,8 @@ def extract_media(node, post_id, save_dir, download_images=True):
         media.append({"type": "photo", "url": url, "saved_as": saved})
 
     for att in node.get("attachments") or []:
+        if not isinstance(att, dict):
+            continue
         styles = att.get("styles") or {}
         attachment = styles.get("attachment") or {}
         single = attachment.get("media") or {}
@@ -147,7 +149,9 @@ def extract_media(node, post_id, save_dir, download_images=True):
             if single.get("__typename") == "Video":
                 media.append({"type": "video", "url": single.get("playable_url")})
 
-        for sub in att.get("all_subattachments", {}).get("nodes", []):
+        for sub in (att.get("all_subattachments") or {}).get("nodes", []) or []:
+            if not isinstance(sub, dict):
+                continue
             m = sub.get("media") or {}
             if "image" in m:
                 add_photo(m["image"]["uri"], m)
